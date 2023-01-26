@@ -1,0 +1,13 @@
+# Common style
+Language: Cpp
+BasedOnStyle: Google
+
+AccessModifierOffset: -2
+BreakConstructorInitializers: BeforeComma
+ConstructorInitializerIndentWidth: 2
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+ColumnLimit: 110
+ReflowComments: true
+SortIncludes: false
+IndentWidth: 2
+TabWidth: 2
