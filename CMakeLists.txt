@@ -15,6 +15,12 @@ include_directories(
 add_library(pose_solver src/pose_solver.cpp)
 target_link_libraries(pose_solver gtsam ${CERES_LIBRARIES})
 
+add_library(camera_rig src/camera_rig.cpp)
+target_link_libraries(camera_rig gtsam)
+
+add_library(batch_solver src/batch_solver.cpp)
+target_link_libraries(batch_solver gtsam)
+
 add_executable(gtcal src/gtcal.cpp)
 target_link_libraries(gtcal gtsam)
 

@@ -1,19 +1,12 @@
 // #include "gtcal/camera_rig.h"
 #include "gtcal_test_utils.h"
+#include "gtcal/batch_solver.h"
 #include <gtest/gtest.h>
 
-#include <gtsam/geometry/Point3.h>
-#include <gtsam/geometry/Pose3.h>
-#include <gtsam/geometry/Cal3Fisheye.h>
-#include <gtsam/geometry/PinholeCamera.h>
 #include <gtsam/geometry/Point2.h>
-#include <gtsam/nonlinear/Values.h>
-#include <gtsam/inference/Symbol.h>
-#include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/slam/ProjectionFactor.h>
 #include <gtsam/slam/GeneralSFMFactor.h>
 #include <gtsam/slam/SmartProjectionFactor.h>
-#include <gtsam/nonlinear/NonlinearFactorGraph.h>
 
 #include <vector>
 
