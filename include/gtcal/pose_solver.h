@@ -13,17 +13,17 @@
 namespace gtcal {
 class ReprojectionErrorResidual {
 public:
-  ReprojectionErrorResidual(const gtsam::Point2& uv, const gtsam::Point3& pt3d,
+  ReprojectionErrorResidual(const gtsam::Point2& uv, const gtsam::Point3& pt3d_cam,
                             const gtsam::Cal3Fisheye::shared_ptr& cmod_params);
 
   bool operator()(const double* const pose_target_cam_arr, double* residuals) const;
 
-  static ceres::CostFunction* Create(const gtsam::Point2& uv, const gtsam::Point3& pt3d,
+  static ceres::CostFunction* Create(const gtsam::Point2& uv, const gtsam::Point3& pt3d_cam,
                                      const gtsam::Cal3Fisheye::shared_ptr& cmod_params);
 
 private:
   const gtsam::Point2 uv_ = gtsam::Point2::Constant(utils::NaN);
-  const gtsam::Point3 pt3d_ = gtsam::Point3::Constant(utils::NaN);
+  const gtsam::Point3 pt3d_cam_ = gtsam::Point3::Constant(utils::NaN);
   const gtsam::Cal3Fisheye::shared_ptr cmod_params_ = nullptr;
 };
 

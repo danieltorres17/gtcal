@@ -1,13 +1,10 @@
 #include "gtcal/camera_rig.h"
+#include "gtcal_test_utils.h"
+
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtest/gtest.h>
 
-#define IMAGE_WIDTH 1024
-#define IMAGE_HEIGHT 570
-#define FX 200
-#define FY 200
-#define CX 512
-#define CY 235
+#include <memory>
 
 TEST(CameraRig, CameraRig) {
   std::vector<gtsam::Cal3Fisheye::shared_ptr> camera_params;
@@ -21,6 +18,11 @@ TEST(CameraRig, CameraRig) {
   const auto cam = rig.GetCameraParameters(0);
   EXPECT_FLOAT_EQ(cam->k1(), 0.0);
   EXPECT_FLOAT_EQ(rig.GetCameraParameters(1)->k1(), 2.0);
+}
+
+TEST(Camera, CameraVariant) {
+  auto K = gtsam::Cal3Fisheye(FX, FY, 0., CX, CY, 0., 0.1, 0., 0.);
+  auto K2 = gtsam::Cal3_S2(FX, FY, 0.25, CX, CY);
 }
 
 int main(int argc, char** argv) {

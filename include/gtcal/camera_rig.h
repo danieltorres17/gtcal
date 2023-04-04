@@ -10,8 +10,12 @@
 
 namespace gtcal {
 
+enum class CameraType { CAL3_S2, CAL3FISHEYE, UNKNOWN };
+
 class CameraRig {
 public:
+  using Type = std::variant<gtsam::Cal3_S2, gtsam::Cal3Fisheye>;
+
   CameraRig(const size_t num_cameras, const std::vector<gtsam::Cal3Fisheye::shared_ptr>& camera_models);
 
   size_t GetNumCameras() const { return num_cameras_; }

@@ -1,9 +1,9 @@
 #include "gtcal/pose_solver.h"
 
 namespace gtcal {
-ReprojectionErrorResidual::ReprojectionErrorResidual(const gtsam::Point2& uv, const gtsam::Point3& pt3d,
+ReprojectionErrorResidual::ReprojectionErrorResidual(const gtsam::Point2& uv, const gtsam::Point3& pt3d_cam,
                                                      const gtsam::Cal3Fisheye::shared_ptr& cmod_params)
-  : uv_(uv), pt3d_(pt3d), cmod_params_(cmod_params) {}
+  : uv_(uv), pt3d_cam_(pt3d_cam), cmod_params_(cmod_params) {}
 
 bool ReprojectionErrorResidual::operator()(const double* const pose_target_cam_arr, double* residuals) const {
   // Get pose vector using current pose estimate.
@@ -13,11 +13,15 @@ bool ReprojectionErrorResidual::operator()(const double* const pose_target_cam_a
   const gtsam::Pose3 pose_target_cam = gtsam::Pose3(rot, xyz);
 
   // Calculate 3D point using pose.
-  const gtsam::Point3 pt3d_cam = pose_target_cam.transformTo(pt3d_);
+  const gtsam::Point3 pt3d_target_new = pose_target_cam.transformFrom(pt3d_cam_);
 
   // Project 3D point using new pose estimate.
   gtsam::PinholeCamera<gtsam::Cal3Fisheye> cmod(pose_target_cam, *cmod_params_);
-  const gtsam::Point2 uv = cmod.project(pt3d_cam);
+  const gtsam::Point2 uv = cmod.project(pt3d_target_new);
+  if (gtcal::utils::FilterPixelCoords(
+          uv, 1024, 570)) {  // TODO: pass image width and height as parameters in constructor.
+    return false;
+  }
 
   // Calculate residuals
   residuals[0] = uv.x() - uv_.x();
@@ -25,10 +29,10 @@ bool ReprojectionErrorResidual::operator()(const double* const pose_target_cam_a
   return true;
 }
 
-ceres::CostFunction* ReprojectionErrorResidual::Create(const gtsam::Point2& uv, const gtsam::Point3& pt3d,
+ceres::CostFunction* ReprojectionErrorResidual::Create(const gtsam::Point2& uv, const gtsam::Point3& pt3d_cam,
                                                        const gtsam::Cal3Fisheye::shared_ptr& cmod_params) {
   return new ceres::NumericDiffCostFunction<ReprojectionErrorResidual, ceres::CENTRAL, 2, 6>(
-      new ReprojectionErrorResidual(uv, pt3d, cmod_params));
+      new ReprojectionErrorResidual(uv, pt3d_cam, cmod_params));
 }
 
 PoseSolver::PoseSolver(const bool verbose) {
@@ -41,11 +45,11 @@ PoseSolver::PoseSolver(const bool verbose) {
   loss_function_ = new ceres::HuberLoss(loss_scaling_param_);
 }
 
-bool PoseSolver::Solve(const gtsam::Point2Vector& uvs, const gtsam::Point3Vector& pts3d_target,
+bool PoseSolver::Solve(const gtsam::Point2Vector& uvs, const gtsam::Point3Vector& pts3d_cam,
                        const gtsam::Cal3Fisheye::shared_ptr& cmod_params,
                        gtsam::Pose3& pose_target_cam) const {
   // Ensure the same number of pixels and 3D points were given.
-  assert(uvs.size() == pts3d_target.size());
+  assert(uvs.size() == pts3d_cam.size());
 
   // Create initial pose estimate vector.
   const gtsam::Point3& xyz = pose_target_cam.translation();
@@ -55,7 +59,7 @@ bool PoseSolver::Solve(const gtsam::Point2Vector& uvs, const gtsam::Point3Vector
   // Create residuals and solve problem.
   ceres::Problem problem;
   for (size_t ii = 0; ii < uvs.size(); ii++) {
-    auto cost_functor = ReprojectionErrorResidual::Create(uvs.at(ii), pts3d_target.at(ii), cmod_params);
+    auto cost_functor = ReprojectionErrorResidual::Create(uvs.at(ii), pts3d_cam.at(ii), cmod_params);
     problem.AddResidualBlock(cost_functor, loss_function_, pose_target_cam_arr);
   }
 

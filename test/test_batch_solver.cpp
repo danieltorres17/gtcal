@@ -32,8 +32,8 @@ gtsam::Pose3Vector GenerateCameraPoses() {
 std::vector<gtsam::Point3Vector> GenerateLandmarks(const gtsam::Pose3Vector& poses_target_cam) {
   std::vector<gtsam::Point3Vector> target_points;
   for (size_t ii = 0; ii < poses_target_cam.size(); ii++) {
-    const gtsam::Point3Vector target_points_target = GenerateGridPts3d(0.15, 10, 13);
-    target_points.emplace_back(target_points_target);
+    const gtcal::utils::CalibrationTarget target(0.15, 10, 13);
+    target_points.emplace_back(target.grid_pts3d_target);
   }
 
   return target_points;
