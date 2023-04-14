@@ -100,10 +100,10 @@ TEST_F(PoseSolverFixture, SinglePoseTranslationOnly) {
   // Check that the pose is close to the ground truth.
   gtsam::Values pose3_result = gtsam::utilities::allPose3s(result);
   pose3_result.print("Pose3 estimated:\n");
+  EXPECT_TRUE(pose3_result.at<gtsam::Pose3>(gtsam::Symbol('x', 0)).equals(pose1_target_cam, 1e-5));
 }
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
-
   return RUN_ALL_TESTS();
 }
