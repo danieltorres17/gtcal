@@ -11,3 +11,6 @@ target_link_libraries(test_camera_rig GTest::GTest gtsam camera_rig)
 
 add_executable(test_gtcal_test_utils test_gtcal_test_utils.cpp)
 target_link_libraries(test_gtcal_test_utils GTest::GTest gtsam)
+
+add_executable(test_pose_solver_gtsam test_pose_solver_gtsam.cpp)
+target_link_libraries(test_pose_solver_gtsam GTest::GTest gtsam)

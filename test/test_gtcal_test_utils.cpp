@@ -3,13 +3,16 @@
 
 #include <algorithm>
 
-TEST(TargetPointGeneration, TestGenerateGridPts3d) {
+struct GtcalTestUtils : public testing::Test {
+protected:
   // Get grid points at first pose
-  const double grid_spacing = 0.1;
+  const double grid_spacing = 0.3;
   const int num_rows = 10;
-  const int num_cols = 10;
+  const int num_cols = 13;
   const int num_target_pts = num_rows * num_cols;
+};
 
+TEST_F(GtcalTestUtils, TestGenerateGridPts3d) {
   // Create target object.
   const gtcal::utils::CalibrationTarget target(grid_spacing, num_rows, num_cols);
 
@@ -30,6 +33,20 @@ TEST(TargetPointGeneration, TestGenerateGridPts3d) {
   // Get the center point and check that it's what we expect.
   const gtsam::Point3 target_3dcenter = target.get3dCenter();
   EXPECT_DOUBLE_EQ((target_3dcenter - target_3dcenter_expected).norm(), 0.0);
+}
+
+TEST_F(GtcalTestUtils, PosesAroundTarget) {
+  // Create target object.
+  const gtcal::utils::CalibrationTarget target(grid_spacing, num_rows, num_cols);
+  const gtsam::Point3 target_center_pt3d = target.get3dCenter();
+  const double target_center_x = target_center_pt3d.x();
+  const double target_center_y = target_center_pt3d.y();
+  const gtsam::Point3 initial_offset = {target_center_x, target_center_y, -0.75};
+
+  // Get synthetic poses around target.
+  const auto poses_target_cam =
+      gtcal::utils::GeneratePosesAroundTarget(target, -3.0, -target_center_y / 2, initial_offset);
+  EXPECT_EQ(poses_target_cam.size(), 10);
 }
 
 int main(int argc, char** argv) {

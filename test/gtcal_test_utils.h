@@ -62,12 +62,35 @@ struct CalibrationTarget {
   }
 };
 
-static gtsam::Pose3Vector GeneratePosesAroundTarget(const CalibrationTarget& target, const size_t num_poses) {
-  gtsam::Pose3Vector poses_target_cam;
-  poses_target_cam.reserve(num_poses);
+static gtsam::Pose3Vector GeneratePosesAroundTarget(const CalibrationTarget& target, const double radius,
+                                                    const double y_dist,
+                                                    const gtsam::Point3& initial_offset) {
+  // Define bounds and theta angles.
+  const double theta_min_rad = -M_PI_4;
+  const double theta_max_rad = M_PI_4;
+  const size_t num_poses = 10;
+  const double theta_delta_rad = (theta_max_rad - theta_min_rad) / (num_poses - 1);
+  std::vector<double> thetas_rad;
+  for (size_t ii = 0; ii < num_poses; ii++) {
+    thetas_rad.push_back(theta_min_rad + ii * theta_delta_rad);
+  }
 
   // Get target center offset.
-  // const gtsam::Point3 target_center_offset =
+  const gtsam::Point3 target_center_pt3d = target.get3dCenter();
+  const double target_center_x = target_center_pt3d.x();
+  const double target_center_y = target_center_pt3d.y();
+
+  // Generate poses.
+  gtsam::Pose3Vector poses_target_cam;
+  poses_target_cam.reserve(num_poses);
+  for (size_t ii = 0; ii < num_poses; ii++) {
+    const double& theta = thetas_rad.at(ii);
+    const gtsam::Rot3 R_target_cam = gtsam::Rot3::RzRyRx(0., thetas_rad.at(ii), 0.);
+    gtsam::Point3 xyz_target_cam = {radius * std::sin(theta), y_dist, radius * std::cos(theta)};
+    xyz_target_cam += initial_offset;
+    const gtsam::Pose3 pose_target_cam = gtsam::Pose3(R_target_cam, xyz_target_cam);
+    poses_target_cam.push_back(pose_target_cam);
+  }
 
   return poses_target_cam;
 }
