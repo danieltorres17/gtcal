@@ -62,6 +62,12 @@ public:
   PoseSolver(const bool verbose = false);
 
   /**
+   * @brief Destroy the Pose Solver object. Resets the loss function to nullptr.
+   * 
+   */
+  ~PoseSolver();
+
+  /**
    * @brief Return true if the solver was able to solve for the camera pose in the target frame. Return false
    * otherwise.
    *

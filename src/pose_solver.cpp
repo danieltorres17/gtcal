@@ -2,6 +2,7 @@
 #include <gtsam/geometry/PinholeCamera.h>
 
 namespace gtcal {
+  
 ReprojectionErrorResidual::ReprojectionErrorResidual(const gtsam::Point2& uv,
                                                      const gtsam::Point3& pt3d_target,
                                                      const gtsam::Cal3Fisheye::shared_ptr& cmod_params)
@@ -44,6 +45,8 @@ PoseSolver::PoseSolver(const bool verbose) {
   // Set loss function.
   loss_function_ = new ceres::HuberLoss(loss_scaling_param_);
 }
+
+PoseSolver::~PoseSolver() { delete loss_function_; }
 
 bool PoseSolver::solve(const gtsam::Point2Vector& uvs, const gtsam::Point3Vector& pts3d_target,
                        const gtsam::Cal3Fisheye::shared_ptr& cmod_params,

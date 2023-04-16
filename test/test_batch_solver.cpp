@@ -1,12 +1,14 @@
 // #include "gtcal/camera_rig.h"
 #include "gtcal_test_utils.h"
-#include "gtcal/batch_solver.h"
+// #include "gtcal/batch_solver.h"
 #include <gtest/gtest.h>
 
 #include <gtsam/geometry/Point2.h>
 #include <gtsam/slam/ProjectionFactor.h>
 #include <gtsam/slam/GeneralSFMFactor.h>
 #include <gtsam/slam/SmartProjectionFactor.h>
+#include <gtsam/slam/SmartProjectionFactor.h>
+#include <gtsam/nonlinear/ISAM2.h>
 
 #include <vector>
 
