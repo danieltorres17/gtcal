@@ -16,11 +16,11 @@ public:
   struct Options {
     // Default noise model for initial camera pose prior.
     gtsam::noiseModel::Diagonal::shared_ptr pose_prior_noise_model = gtsam::noiseModel::Diagonal::Sigmas(
-        (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.1)).finished());
+        (gtsam::Vector(6) << gtsam::Vector3::Constant(0.75), gtsam::Vector3{0.5, 0.35, 0.35}).finished());
 
     // Default noise model for the landmark priors.
     gtsam::noiseModel::Isotropic::shared_ptr landmark_prior_noise_model =
-        gtsam::noiseModel::Isotropic::Sigma(3, 1e-7);
+        gtsam::noiseModel::Isotropic::Sigma(3, 1e-8);
 
     // Default noise model for the pixel measurements.
     gtsam::noiseModel::Isotropic::shared_ptr pixel_meas_noise_model =
