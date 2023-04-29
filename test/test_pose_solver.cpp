@@ -14,9 +14,11 @@ protected:
   const size_t num_target_pts = num_rows * num_cols;
 
   // Camera model.
-  boost::shared_ptr<gtsam::Cal3Fisheye> K;
+  std::shared_ptr<gtsam::Cal3Fisheye> K;
 
-  void SetUp() override { K = boost::make_shared<gtsam::Cal3Fisheye>(FX, FY, 0., CX, CY, 0., 0., 0., 0.); }
+  void SetUp() override {
+    K = std::make_shared<gtsam::Cal3Fisheye>(gtsam::Cal3Fisheye(FX, FY, 0., CX, CY, 0., 0., 0., 0.));
+  }
 };
 
 // Tests that the solver is able to find a solution in the case of translation only.
