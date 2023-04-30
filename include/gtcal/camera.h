@@ -16,9 +16,7 @@ class CameraWrapper {
 public:
   CameraWrapper(const size_t width, const size_t height, const T& calibration,
                 const gtsam::Pose3& pose_world_camera = gtsam::Pose3())
-    : width_(width)
-    , height_(height)
-    , camera_(std::make_shared<gtsam::PinholeCamera<T>>(pose_world_camera, calibration)) {}
+    : width_(width), height_(height), calibration_(calibration), pose_world_camera_(pose_world_camera) {}
 
   /**
    * @brief Return projection of 3D point.
@@ -26,16 +24,17 @@ public:
    * @param pt3d_world 3D point to project in world frame.
    * @return gtsam::Point2
    */
-  gtsam::Point2 project(const gtsam::Point3& pt3d_world) const { return camera_->project(pt3d_world); }
+  gtsam::Point2 project(const gtsam::Point3& pt3d_world) const {
+    gtsam::PinholeCamera<T> camera(pose_world_camera_, calibration_);
+    return camera.project(pt3d_world);
+  }
 
   /**
    * @brief Update the camera's calibration.
    *
    * @param calibration gtsam calibration type.
    */
-  void updateCalibration(const T& calibration) {
-    // camera_->
-  }
+  void updateCalibration(const T& calibration) { calibration_ = calibration; }
 
   /**
    * @brief Return true if the camera parameters are equal to given camera's parameters. Return false
@@ -47,8 +46,8 @@ public:
    * @return false
    */
   bool equals(const CameraWrapper<T>& other, double tol = 1e-9) const {
-    return camera_->equals(*other.camera_, tol) && width_ == other.width_ && height_ == other.height_ &&
-           camera_->pose().equals(other.camera_->pose(), tol);
+    return calibration_.equals(*other.calibration(), tol) && pose_world_camera_.equals(other.pose(), tol) &&
+           width_ == other.width_ && height_ == other.height_;
   }
 
   /**
@@ -56,14 +55,21 @@ public:
    *
    * @return gtsam::Pose3
    */
-  gtsam::Pose3 pose() const { return camera_->pose(); }
+  gtsam::Pose3 pose() const { return pose_world_camera_; }
+
+  /**
+   * @brief Update the camera's pose in the world frame.
+   *
+   * @param pose_world_camera
+   */
+  void updatePose(const gtsam::Pose3& pose_world_camera) { pose_world_camera_ = pose_world_camera; }
 
   /**
    * @brief Return gtsam calibration object.
    *
    * @return T
    */
-  T calibration() const { return camera_->calibration(); }
+  T calibration() const { return calibration_; }
 
   /**
    * @brief Return camera image width.
@@ -82,7 +88,8 @@ public:
 private:
   size_t width_ = 0;
   size_t height_ = 0;
-  std::shared_ptr<gtsam::PinholeCamera<T>> camera_ = nullptr;
+  T calibration_;
+  gtsam::Pose3 pose_world_camera_;
 };
 
 class Camera {
@@ -121,6 +128,29 @@ public:
           }
         },
         camera_);
+  }
+
+  void setCameraPose(const gtsam::Pose3& pose_world_camera) {
+    std::visit(
+        [&](auto&& arg) -> void {
+          using T = std::decay_t<decltype(arg)>;
+          if constexpr (std::is_same_v<T, std::shared_ptr<CameraWrapper<gtsam::Cal3_S2>>>) {
+            arg->updatePose(pose_world_camera);
+          } else if constexpr (std::is_same_v<T, std::shared_ptr<CameraWrapper<gtsam::Cal3Fisheye>>>) {
+            arg->updatePose(pose_world_camera);
+          } else {
+            assert(false && "Invalid camera model.");
+          }
+        },
+        camera_);
+  }
+
+  size_t height() const {
+    return std::visit([](auto&& arg) -> size_t { return arg->height(); }, camera_);
+  }
+
+  size_t width() const {
+    return std::visit([](auto&& arg) -> size_t { return arg->width(); }, camera_);
   }
 
 private:

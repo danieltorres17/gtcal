@@ -30,6 +30,7 @@ protected:
   std::shared_ptr<gtsam::Cal3_S2> K_cal3_s2 = std::make_shared<gtsam::Cal3_S2>(FX, FY, 0., CX, CY);
 };
 
+// Tests that a Fisheye camera is constructed properly.
 TEST_F(CameraFixture, FisheyeCameraConstruction) {
   // Create fisheye camera and check results.
   gtcal::CameraWrapper<gtsam::Cal3Fisheye> fisheye_camera(IMAGE_WIDTH, IMAGE_HEIGHT, *K_fisheye);
@@ -39,6 +40,7 @@ TEST_F(CameraFixture, FisheyeCameraConstruction) {
   EXPECT_EQ(IMAGE_HEIGHT, fisheye_camera.height());
 }
 
+// Tests that a Cal3_S2 camera is constructed properly.
 TEST_F(CameraFixture, Cal3S2CameraConstruction) {
   // Create S3_2 camera and check results.
   gtcal::CameraWrapper<gtsam::Cal3_S2> cal3_s2_camera(IMAGE_WIDTH, IMAGE_HEIGHT, *K_cal3_s2);
@@ -48,6 +50,7 @@ TEST_F(CameraFixture, Cal3S2CameraConstruction) {
   EXPECT_EQ(IMAGE_HEIGHT, cal3_s2_camera.height());
 }
 
+// Tests the projection for a Fisheye camera.
 TEST_F(CameraFixture, FisheyeCameraProjection) {
   // Create gtcal fisheye camera and project first target point.
   gtcal::CameraWrapper<gtsam::Cal3Fisheye> fisheye_camera(IMAGE_WIDTH, IMAGE_HEIGHT, *K_fisheye,
@@ -60,6 +63,7 @@ TEST_F(CameraFixture, FisheyeCameraProjection) {
   EXPECT_FLOAT_EQ((uv.norm() - uv_expected.norm()), 0.0);
 }
 
+// Tests the projection for a Cal3_S2 camera.
 TEST_F(CameraFixture, Cal3S2CameraProjection) {
   // Create gtcal cal3_s2 camera and project first target point.
   gtcal::CameraWrapper<gtsam::Cal3_S2> cal3_s2(IMAGE_WIDTH, IMAGE_HEIGHT, *K_cal3_s2, pose0_target_cam);
@@ -71,6 +75,7 @@ TEST_F(CameraFixture, Cal3S2CameraProjection) {
   EXPECT_FLOAT_EQ((uv.norm() - uv_expected.norm()), 0.0);
 }
 
+// Tests that the gtcal::Camera class constructs cameras with the appropriate camera model.
 TEST_F(CameraFixture, CameraVariant) {
   // Create fisheye camera.
   gtcal::Camera fisheye_cam;
@@ -96,6 +101,45 @@ TEST_F(CameraFixture, CameraVariant) {
   gtsam::PinholeCamera<gtsam::Cal3Fisheye> gtsam_fisheye_camera(pose0_target_cam, *K_fisheye);
   const gtsam::Point2 uv_fisheye_expected = gtsam_fisheye_camera.project(target.grid_pts3d_target.at(0));
   EXPECT_FLOAT_EQ((uv_fisheye.norm() - uv_fisheye_expected.norm()), 0.0);
+}
+
+// Tests that a CameraWrapper's calibration can be updated.
+TEST_F(CameraFixture, UpdateCalibration) {
+  // Create gtcal camera.
+  gtcal::CameraWrapper<gtsam::Cal3Fisheye> fisheye_camera(IMAGE_WIDTH, IMAGE_HEIGHT, *K_fisheye,
+                                                          pose0_target_cam);
+  EXPECT_TRUE(K_fisheye->equals(fisheye_camera.calibration()));
+
+  // Create new calibration to update camera with.
+  gtsam::Cal3Fisheye K_fisheye_new(1000.0, 1000.0, 0.0, 500.0, 500.0, 1.07, 0.0, 0.5, 0.5);
+
+  // Update gtcal camera calibration and check result.
+  fisheye_camera.updateCalibration(K_fisheye_new);
+  EXPECT_TRUE(K_fisheye_new.equals(fisheye_camera.calibration()));
+}
+
+// Tests that a CameraWrapper's pose can be updated.
+TEST_F(CameraFixture, UpdatePose) {
+  // Create gtcal camera.
+  gtcal::CameraWrapper<gtsam::Cal3_S2> cal3_s2_camera(IMAGE_WIDTH, IMAGE_HEIGHT, *K_cal3_s2,
+                                                      pose0_target_cam);
+  EXPECT_TRUE(cal3_s2_camera.pose().equals(cal3_s2_camera.pose()));
+
+  // Create new pose to update camera with.
+  gtsam::Pose3 pose_world_camera_new;
+
+  // Update gtcal camera pose and check result.
+  cal3_s2_camera.updatePose(pose_world_camera_new);
+  EXPECT_TRUE(pose_world_camera_new.equals(cal3_s2_camera.pose()));
+}
+
+// Tests the height and width getters for gtcal::Camera object.
+TEST_F(CameraFixture, WidthHeight) {
+  // Create gtcal camera.
+  gtcal::CameraWrapper<gtsam::Cal3_S2> cal3_s2_camera(IMAGE_WIDTH, IMAGE_HEIGHT, *K_cal3_s2,
+                                                      pose0_target_cam);
+  EXPECT_EQ(cal3_s2_camera.width(), IMAGE_WIDTH);
+  EXPECT_EQ(cal3_s2_camera.height(), IMAGE_HEIGHT);
 }
 
 int main(int argc, char** argv) {

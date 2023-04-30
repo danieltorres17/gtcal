@@ -1,5 +1,6 @@
 #include "gtcal/pose_solver.h"
 #include "gtcal_test_utils.h"
+#include "gtcal/camera.h"
 #include <gtsam/geometry/PinholeCamera.h>
 #include <gtest/gtest.h>
 
@@ -14,7 +15,7 @@ protected:
   const size_t num_target_pts = num_rows * num_cols;
 
   // Camera model.
-  std::shared_ptr<gtsam::Cal3Fisheye> K;
+  std::shared_ptr<gtsam::Cal3Fisheye> K = nullptr;
 
   void SetUp() override {
     K = std::make_shared<gtsam::Cal3Fisheye>(gtsam::Cal3Fisheye(FX, FY, 0., CX, CY, 0., 0., 0., 0.));
@@ -40,13 +41,14 @@ TEST_F(PoseSolverFixture, SinglePoseTranslationOnly) {
   const gtsam::Pose3 pose1_target_cam = gtsam::Pose3(R1_target_cam, xyz1_target_cam);
 
   // Create camera model.
-  gtsam::PinholeCamera<gtsam::Cal3Fisheye> camera(pose1_target_cam, *K);
+  std::shared_ptr<gtcal::Camera> camera = std::make_shared<gtcal::Camera>();
+  camera->setCameraModel<gtsam::Cal3Fisheye>(IMAGE_WIDTH, IMAGE_HEIGHT, *K, pose1_target_cam);
 
   // Get target point measurements at second pose.
   gtsam::Point2Vector uvs_pose1;
   uvs_pose1.reserve(target.grid_pts3d_target.size());
   for (const auto& pt3d_target : target.grid_pts3d_target) {
-    const gtsam::Point2 uv = camera.project(pt3d_target);
+    const gtsam::Point2 uv = camera->project(pt3d_target);
     if (gtcal::utils::FilterPixelCoords(uv, IMAGE_WIDTH, IMAGE_HEIGHT)) {
       uvs_pose1.emplace_back(uv);
     }
@@ -59,7 +61,8 @@ TEST_F(PoseSolverFixture, SinglePoseTranslationOnly) {
   gtsam::Pose3 pose_target_cam_init =
       gtsam::Pose3(gtsam::Rot3::RzRyRx(0.001, -0.0002, 0.01),
                    gtsam::Point3(target_center_x - 0.002, target_center_y + 0.0, -0.81));
-  const bool success = pose_solver.solve(uvs_pose1, target.grid_pts3d_target, K, pose_target_cam_init);
+
+  const bool success = pose_solver.solve(uvs_pose1, target.grid_pts3d_target, camera, pose_target_cam_init);
   EXPECT_TRUE(success) << "Pose solver failed.";
 
   // Check the estimated solution.
@@ -89,12 +92,15 @@ TEST_F(PoseSolverFixture, FirstAndSecondPoses) {
   const gtsam::Pose3 pose0_target_cam = poses_target_cam[0];
   const gtsam::Pose3 pose1_target_cam = poses_target_cam[1];
 
+  // Create camera model.
+  std::shared_ptr<gtcal::Camera> camera = std::make_shared<gtcal::Camera>();
+  camera->setCameraModel<gtsam::Cal3Fisheye>(IMAGE_WIDTH, IMAGE_HEIGHT, *K, pose1_target_cam);
+
   // Get measurements at pose 1.
-  gtsam::PinholeCamera<gtsam::Cal3Fisheye> camera(pose1_target_cam, *K);
   gtsam::Point2Vector uvs_pose1;
   uvs_pose1.reserve(target.grid_pts3d_target.size());
   for (size_t ii = 0; ii < target.grid_pts3d_target.size(); ++ii) {
-    const gtsam::Point2 uv = camera.project(target.grid_pts3d_target[ii]);
+    const gtsam::Point2 uv = camera->project(target.grid_pts3d_target[ii]);
     if (gtcal::utils::FilterPixelCoords(uv, IMAGE_WIDTH, IMAGE_HEIGHT)) {
       uvs_pose1.emplace_back(uv);
     }
@@ -104,7 +110,7 @@ TEST_F(PoseSolverFixture, FirstAndSecondPoses) {
   // Create pose solver problem.
   gtcal::PoseSolver pose_solver(false);
   gtsam::Pose3 pose_target_cam_init = pose0_target_cam;
-  const bool success = pose_solver.solve(uvs_pose1, target.grid_pts3d_target, K, pose_target_cam_init);
+  const bool success = pose_solver.solve(uvs_pose1, target.grid_pts3d_target, camera, pose_target_cam_init);
   EXPECT_TRUE(success) << "Pose solver failed.";
 
   // Check estimated solution.

@@ -7,6 +7,7 @@
 #include <ceres/ceres.h>
 #include <ceres/loss_function.h>
 
+#include "gtcal/camera.h"
 #include "gtcal/utils.h"
 
 namespace gtcal {
@@ -22,7 +23,7 @@ public:
    * this to support other camera models soon.
    */
   ReprojectionErrorResidual(const gtsam::Point2& uv, const gtsam::Point3& pt3d_target,
-                            const gtsam::Cal3Fisheye::shared_ptr& cmod_params);
+                            const std::shared_ptr<Camera>& cmod);
 
   /**
    * @brief Residual functor for Ceres solver. Return true if a measurement was successfully calculated for
@@ -44,12 +45,14 @@ public:
    * @return ceres::CostFunction*
    */
   static ceres::CostFunction* Create(const gtsam::Point2& uv, const gtsam::Point3& pt3d_target,
-                                     const gtsam::Cal3Fisheye::shared_ptr& cmod_params);
+                                     const std::shared_ptr<Camera>& cmod);
 
 private:
   const gtsam::Point2 uv_ = gtsam::Point2::Constant(utils::NaN);
   const gtsam::Point3 pt3d_target_ = gtsam::Point3::Constant(utils::NaN);
-  const gtsam::Cal3Fisheye::shared_ptr cmod_params_ = nullptr;
+  const std::shared_ptr<Camera> cmod_ = nullptr;
+  const size_t width_ = 0;
+  const size_t height_ = 0;
 };
 
 class PoseSolver {
@@ -63,7 +66,7 @@ public:
 
   /**
    * @brief Destroy the Pose Solver object. Resets the loss function to nullptr.
-   * 
+   *
    */
   ~PoseSolver();
 
@@ -79,7 +82,7 @@ public:
    * @return false
    */
   bool solve(const gtsam::Point2Vector& uvs, const gtsam::Point3Vector& pts3d_target,
-             const gtsam::Cal3Fisheye::shared_ptr& cmod_params, gtsam::Pose3& pose_target_cam) const;
+             const std::shared_ptr<Camera>& cmod, gtsam::Pose3& pose_target_cam) const;
 
 private:
   ceres::Solver::Options options_;
