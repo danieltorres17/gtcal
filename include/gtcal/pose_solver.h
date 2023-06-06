@@ -65,7 +65,7 @@ public:
   PoseSolver(const bool verbose = false);
 
   /**
-   * @brief Destroy the Pose Solver object. Resets the loss function to nullptr.
+   * @brief Destroy the Pose Solver object.
    *
    */
   ~PoseSolver();
@@ -74,14 +74,14 @@ public:
    * @brief Return true if the solver was able to solve for the camera pose in the target frame. Return false
    * otherwise.
    *
-   * @param uvs vector of measurments taken at new camera pose (pose we're trying to solve for).
+   * @param measurements vector of measurements taken at new camera pose (pose we're trying to solve for).
    * @param pts3d_target target points in the target frame.
    * @param cmod_params camera intrinsics.
    * @param pose_target_cam initial estimate for the camera pose in the target frame.
    * @return true
    * @return false
    */
-  bool solve(const gtsam::Point2Vector& uvs, const gtsam::Point3Vector& pts3d_target,
+  bool solve(const std::vector<Measurement>& measurements, const gtsam::Point3Vector& pts3d_target,
              const std::shared_ptr<Camera>& cmod, gtsam::Pose3& pose_target_cam) const;
 
 private:
