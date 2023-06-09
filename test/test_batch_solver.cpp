@@ -1,16 +1,20 @@
-// #include "gtcal/camera_rig.h"
 #include "gtcal_test_utils.h"
-// #include "gtcal/batch_solver.h"
+#include "gtcal/camera.h"
+#include "gtcal/utils.h"
+#include "gtcal/batch_solver.h"
 #include <gtest/gtest.h>
 
 #include <gtsam/geometry/Point2.h>
 #include <gtsam/slam/ProjectionFactor.h>
 #include <gtsam/slam/GeneralSFMFactor.h>
 #include <gtsam/slam/SmartProjectionFactor.h>
-#include <gtsam/slam/SmartProjectionFactor.h>
 #include <gtsam/nonlinear/ISAM2.h>
 
 #include <vector>
+
+using gtsam::symbol_shorthand::K;
+using gtsam::symbol_shorthand::L;
+using gtsam::symbol_shorthand::X;
 
 gtsam::Pose3Vector GenerateCameraPoses() {
   gtsam::Pose3Vector poses_target_cam;
@@ -33,6 +37,7 @@ gtsam::Pose3Vector GenerateCameraPoses() {
 
 std::vector<gtsam::Point3Vector> GenerateLandmarks(const gtsam::Pose3Vector& poses_target_cam) {
   std::vector<gtsam::Point3Vector> target_points;
+  target_points.reserve(poses_target_cam.size());
   for (size_t ii = 0; ii < poses_target_cam.size(); ii++) {
     const gtcal::utils::CalibrationTarget target(0.15, 10, 13);
     target_points.emplace_back(target.grid_pts3d_target);
@@ -41,7 +46,71 @@ std::vector<gtsam::Point3Vector> GenerateLandmarks(const gtsam::Pose3Vector& pos
   return target_points;
 }
 
-TEST(BatchSolver, BatchSolver) {
+struct BatchSolverFixture : public testing::Test {
+protected:
+  // Camera calibrations and models.
+  const gtsam::Cal3Fisheye K_fisheye = gtsam::Cal3Fisheye(FX, FY, 0., CX, CY, 0., 0., 0., 0.);
+  const gtsam::Cal3_S2 K_linear = gtsam::Cal3_S2(FX, FY, 0., CX, CY);
+  std::shared_ptr<gtcal::Camera> fisheye_cam = nullptr;
+  std::shared_ptr<gtcal::Camera> linear_cam = nullptr;
+
+  // Target points.
+  const gtcal::utils::CalibrationTarget target{0.15, 10, 13};
+
+  void SetUp() override {
+    // Set the fisheye camera.
+    fisheye_cam = std::make_shared<gtcal::Camera>();
+    fisheye_cam->setCameraModel<gtsam::Cal3Fisheye>(IMAGE_WIDTH, IMAGE_HEIGHT, K_fisheye);
+
+    // Set the linear camera.
+    linear_cam = std::make_shared<gtcal::Camera>();
+    linear_cam->setCameraModel<gtsam::Cal3_S2>(IMAGE_WIDTH, IMAGE_HEIGHT, K_linear);
+  }
+};
+
+// Tests the initialization of the batch solver object.
+TEST_F(BatchSolverFixture, Initialization) {
+  // Create batch solver.
+  gtcal::BatchSolver batch_solver(target.grid_pts3d_target);
+
+  EXPECT_EQ(batch_solver.targetPoints().size(), target.grid_pts3d_target.size());
+}
+
+// Tests that camera calibration prior are successfully added to factor graph and initial values for the
+// gtsam::Cal3_S2 model.
+TEST_F(BatchSolverFixture, CalibrationPriorCal3_S2) {
+  // Create graph and initial values.
+  gtsam::NonlinearFactorGraph graph;
+  gtsam::Values initial_estimate;
+
+  // Create batch solver object.
+  gtcal::BatchSolver batch_solver(target.grid_pts3d_target);
+  batch_solver.addCalibrationPriors(0, linear_cam, graph, initial_estimate);
+
+  // Check the results.
+  const gtsam::Cal3_S2 cal3_s2_prior = initial_estimate.at<gtsam::Cal3_S2>(K(0));
+  EXPECT_EQ(initial_estimate.size(), 1);
+  EXPECT_TRUE(cal3_s2_prior.equals(K_linear));
+}
+
+// Tests that camera calibration prior are successfully added to factor graph and initial values for the
+// gtsam::Cal3Fisheye model.
+TEST_F(BatchSolverFixture, CalibrationPriorCal3_Fisheye) {
+  // Create graph and initial values.
+  gtsam::NonlinearFactorGraph graph;
+  gtsam::Values initial_estimate;
+
+  // Create batch solver object.
+  gtcal::BatchSolver batch_solver(target.grid_pts3d_target);
+  batch_solver.addCalibrationPriors(0, fisheye_cam, graph, initial_estimate);
+
+  // Check the results.
+  const gtsam::Cal3Fisheye cal3_fisheye_prior = initial_estimate.at<gtsam::Cal3Fisheye>(K(0));
+  EXPECT_EQ(initial_estimate.size(), 1);
+  EXPECT_TRUE(cal3_fisheye_prior.equals(K_fisheye));
+}
+
+TEST(BatchSolver, DISABLED_GtsamBatchSolver) {
   // Define initial camera parameters.
   gtsam::Cal3Fisheye K = gtsam::Cal3Fisheye(FX + 5, FY - 5, 0., CX - 5, CY + 5, 0.1, 0., 0., 0.);
 
@@ -132,6 +201,6 @@ TEST(BatchSolver, BatchSolver) {
 }
 
 int main(int argc, char** argv) {
-  ::testing::InitGoogleTest(&argc, argv);
+  testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

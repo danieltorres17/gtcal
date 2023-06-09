@@ -18,6 +18,9 @@ target_link_libraries(pose_solver gtsam ${CERES_LIBRARIES})
 add_library(pose_solver_gtsam src/pose_solver_gtsam.cpp)
 target_link_libraries(pose_solver_gtsam gtsam)
 
+add_library(batch_solver src/batch_solver.cpp)
+target_link_libraries(batch_solver gtsam)
+
 add_executable(gtcal src/gtcal.cpp)
 target_link_libraries(gtcal gtsam)
 

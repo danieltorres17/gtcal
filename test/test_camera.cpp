@@ -80,10 +80,12 @@ TEST_F(CameraFixture, CameraVariant) {
   // Create fisheye camera.
   gtcal::Camera fisheye_cam;
   fisheye_cam.setCameraModel<gtsam::Cal3Fisheye>(IMAGE_WIDTH, IMAGE_HEIGHT, *K_fisheye, pose0_target_cam);
+  EXPECT_EQ(fisheye_cam.modelType(), gtcal::Camera::ModelType::CAL3_FISHEYE);
 
   // Create Cal3_S2 camera.
   gtcal::Camera cal3_s2_cam;
   cal3_s2_cam.setCameraModel<gtsam::Cal3_S2>(IMAGE_WIDTH, IMAGE_HEIGHT, *K_cal3_s2, pose0_target_cam);
+  EXPECT_EQ(cal3_s2_cam.modelType(), gtcal::Camera::ModelType::CAL3_S2);
 
   // Create vector of cameras.
   std::vector<gtcal::Camera> cameras = {fisheye_cam, cal3_s2_cam};

@@ -94,6 +94,11 @@ private:
 
 class Camera {
 public:
+  using CameraVariant = std::variant<std::shared_ptr<CameraWrapper<gtsam::Cal3_S2>>,
+                                     std::shared_ptr<CameraWrapper<gtsam::Cal3Fisheye>>>;
+
+  enum class ModelType { CAL3_S2, CAL3_FISHEYE };
+
   /**
    * @brief Set the Camera Model object.
    *
@@ -107,6 +112,27 @@ public:
   void setCameraModel(const size_t width, const size_t height, const T& calibration,
                       const gtsam::Pose3& pose_world_camera = gtsam::Pose3()) {
     camera_ = std::make_shared<CameraWrapper<T>>(width, height, calibration, pose_world_camera);
+    setModelType();
+  }
+
+  /**
+   * @brief Set the model type based on the variant type. Terrible workaround for not being able to get type
+   * directly from the variant.
+   *
+   */
+  void setModelType() {
+    std::visit(
+        [&](auto&& arg) -> void {
+          using T = std::decay_t<decltype(arg)>;
+          if constexpr (std::is_same_v<T, std::shared_ptr<CameraWrapper<gtsam::Cal3_S2>>>) {
+            model_ = ModelType::CAL3_S2;
+          } else if constexpr (std::is_same_v<T, std::shared_ptr<CameraWrapper<gtsam::Cal3Fisheye>>>) {
+            model_ = ModelType::CAL3_FISHEYE;
+          } else {
+            assert(false && "Invalid camera model.");
+          }
+        },
+        camera_);
   }
 
   /**
@@ -153,10 +179,13 @@ public:
     return std::visit([](auto&& arg) -> size_t { return arg->width(); }, camera_);
   }
 
+  const CameraVariant& cameraVariant() const { return camera_; }
+
+  ModelType modelType() const { return model_; }
+
 private:
-  std::variant<std::shared_ptr<CameraWrapper<gtsam::Cal3_S2>>,
-               std::shared_ptr<CameraWrapper<gtsam::Cal3Fisheye>>>
-      camera_;
+  CameraVariant camera_;
+  ModelType model_ = ModelType::CAL3_S2;
 };
 
 }  // namespace gtcal
