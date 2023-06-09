@@ -1,9 +1,5 @@
 #pragma once
 
-#include <gtsam/geometry/Point3.h>
-#include <gtsam/geometry/Pose3.h>
-#include <gtsam/geometry/Cal3Fisheye.h>
-
 #include <ceres/ceres.h>
 #include <ceres/loss_function.h>
 

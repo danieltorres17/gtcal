@@ -2,7 +2,6 @@
 
 #include <unordered_map>
 
-#include <gtsam/geometry/Point3.h>
 #include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/Values.h>
@@ -31,8 +30,18 @@ public:
     gtsam::NonlinearFactorGraph graph;
     gtsam::Values current_estimate;
 
+    /**
+     * @brief Return the number of cameras.
+     *
+     * @return size_t
+     */
     size_t numCameras() const { return cameras.size(); }
 
+    /**
+     * @brief Construct a new State object.
+     *
+     * @param camera_models
+     */
     explicit State(const std::vector<std::shared_ptr<Camera>>& camera_models);
   };
 
@@ -56,16 +65,64 @@ public:
 
 public:
   BatchSolver(const gtsam::Point3Vector& pts3d_target, const Options& options = Options());
+
+  /**
+   * @brief
+   *
+   * @param measurements
+   * @param state
+   */
   void solve(const std::vector<Measurement>& measurements, State& state) const;
+
+  /**
+   * @brief
+   *
+   * @param camera_index
+   * @param camera
+   * @param graph
+   * @param values
+   */
   void addCalibrationPriors(const size_t camera_index, const std::shared_ptr<gtcal::Camera>& camera,
                             gtsam::NonlinearFactorGraph& graph, gtsam::Values& values) const;
+
+  /**
+   * @brief
+   *
+   * @param measurements
+   * @param pts3d_target
+   * @param graph
+   */
   void addLandmarkPriors(const std::vector<Measurement>& measurements,
                          const gtsam::Point3Vector& pts3d_target, gtsam::NonlinearFactorGraph& graph) const;
+
+  /**
+   * @brief
+   *
+   * @param camera_index
+   * @param camera
+   * @param num_camera_update
+   * @param measurements
+   * @param graph
+   */
   void addLandmarkFactors(const size_t camera_index, const std::shared_ptr<gtcal::Camera>& camera,
                           const size_t num_camera_update, const std::vector<Measurement>& measurements,
                           gtsam::NonlinearFactorGraph& graph) const;
+
+  /**
+   * @brief
+   *
+   * @param camera_index
+   * @param pose_target_cam
+   * @param graph
+   */
   void addPosePrior(const size_t camera_index, const gtsam::Pose3& pose_target_cam,
                     gtsam::NonlinearFactorGraph& graph) const;
+
+  /**
+   * @brief
+   *
+   * @return const gtsam::Point3Vector&
+   */
   const gtsam::Point3Vector& targetPoints() const { return pts3d_target_; }
 
 private:

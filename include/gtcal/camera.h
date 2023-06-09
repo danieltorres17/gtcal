@@ -156,6 +156,11 @@ public:
         camera_);
   }
 
+  /**
+   * @brief Set the camera's pose in the world frame.
+   *
+   * @param pose_world_camera
+   */
   void setCameraPose(const gtsam::Pose3& pose_world_camera) {
     std::visit(
         [&](auto&& arg) -> void {
@@ -171,20 +176,45 @@ public:
         camera_);
   }
 
+  /**
+   * @brief Return gtsam::Pose3 denoting camera pose in world frame.
+   *
+   * @return gtsam::Pose3
+   */
   gtsam::Pose3 pose() const {
     return std::visit([](auto&& arg) -> gtsam::Pose3 { return arg->pose(); }, camera_);
   }
 
+  /**
+   * @brief Return the camera's image height.
+   *
+   * @return size_t
+   */
   size_t height() const {
     return std::visit([](auto&& arg) -> size_t { return arg->height(); }, camera_);
   }
 
+  /**
+   * @brief Return the camera's image width.
+   *
+   * @return size_t
+   */
   size_t width() const {
     return std::visit([](auto&& arg) -> size_t { return arg->width(); }, camera_);
   }
 
+  /**
+   * @brief Return the camera's std::variant member.
+   *
+   * @return CameraVariant
+   */
   const CameraVariant& cameraVariant() const { return camera_; }
 
+  /**
+   * @brief Return the camera's model type enum.
+   *
+   * @return ModelType
+   */
   ModelType modelType() const { return model_; }
 
 private:

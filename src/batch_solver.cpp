@@ -34,9 +34,6 @@ void BatchSolver::solve(const std::vector<Measurement>& measurements, State& sta
                   [&camera_index](const Measurement& meas) { return meas.camera_id == camera_index; });
   assert(all_same_camera && "[BatchSolver::solve] All measurements must be from the same camera.");
 
-  // Check the camera id and update map if necessary.
-  // updateCameraIndicesMap(camera_index, state);
-
   // Create graph and initial values.
   gtsam::NonlinearFactorGraph graph;
   gtsam::Values initial_values;
@@ -45,7 +42,7 @@ void BatchSolver::solve(const std::vector<Measurement>& measurements, State& sta
   addCalibrationPriors(camera_index, state.cameras.at(camera_index), graph, initial_values);
 
   // Get the number of times the camera has been updated and add landmark factors.
-  const size_t num_camera_updates = state.num_camera_updates.at(camera_index);
+  const size_t& num_camera_updates = state.num_camera_updates.at(camera_index);
   if (num_camera_updates == 0) {
     // If it's the first time the camera has been updated, add a pose prior on the graph.
     addPosePrior(camera_index, state.cameras.at(camera_index)->pose(), graph);
@@ -53,6 +50,7 @@ void BatchSolver::solve(const std::vector<Measurement>& measurements, State& sta
     addLandmarkPriors(measurements, pts3d_target_, graph);
     return;
   }
+  
   // Add landmark factors.
   addLandmarkFactors(camera_index, state.cameras.at(camera_index), num_camera_updates, measurements, graph);
 

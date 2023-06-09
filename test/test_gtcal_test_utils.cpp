@@ -12,6 +12,7 @@ protected:
   const int num_target_pts = num_rows * num_cols;
 };
 
+// Tests that a calibration target object is constructed properly.
 TEST_F(GtcalTestUtils, TestGenerateGridPts3d) {
   // Create target object.
   const gtcal::utils::CalibrationTarget target(grid_spacing, num_rows, num_cols);
@@ -35,6 +36,7 @@ TEST_F(GtcalTestUtils, TestGenerateGridPts3d) {
   EXPECT_DOUBLE_EQ((target_3dcenter - target_3dcenter_expected).norm(), 0.0);
 }
 
+// Tests that poses are sampled around the target.
 TEST_F(GtcalTestUtils, PosesAroundTarget) {
   // Create target object.
   const gtcal::utils::CalibrationTarget target(grid_spacing, num_rows, num_cols);
