@@ -1,6 +1,8 @@
 #include "gtcal/batch_solver.h"
 #include "gtcal/utils.h"
 
+#include <gtsam/slam/ProjectionFactor.h>
+#include <gtsam/slam/GeneralSFMFactor.h>
 #include <gtsam/inference/Symbol.h>
 
 using gtsam::symbol_shorthand::K;
@@ -52,6 +54,20 @@ void BatchSolver::solve(const std::vector<Measurement>& measurements, State& sta
 
   // Add camera calibration prior to initial values and graph.
   addCalibrationPriors(camera_index, state.cameras.at(camera_index), graph, initial_values);
+
+  // Get the number of times the camera has been updated and add landmark factors.
+  const size_t num_camera_updates = state.num_camera_updates.at(camera_index);
+  if (num_camera_updates == 0) {
+    // If it's the first time the camera has been updated, add a pose prior on the graph.
+    addPosePrior(camera_index, state.cameras.at(camera_index)->pose(), graph);
+    // Also add landmark priors.
+    addLandmarkPriors(measurements, pts3d_target_, graph);
+    return;
+  }
+  // Add landmark factors.
+  addLandmarkFactors(camera_index, state.cameras.at(camera_index), num_camera_updates, measurements, graph);
+
+  // Update iSAM with the new factors.
 }
 
 void BatchSolver::addCalibrationPriors(const size_t camera_index,
@@ -63,7 +79,7 @@ void BatchSolver::addCalibrationPriors(const size_t camera_index,
   if (model_type == Camera::ModelType::CAL3_S2) {  // Cal3_S2.
     // Get camera model.
     const auto cmod = std::get<std::shared_ptr<CameraWrapper<gtsam::Cal3_S2>>>(camera->cameraVariant());
-    assert(cmod && "[BatchSolver::solve] Camera model is not of type Cal3_S2.");
+    assert(cmod && "[BatchSolver::addCalibrationPriors] Camera model is not of type Cal3_S2.");
 
     // Add calibration prior to initial values and graph.
     values.insert(K(camera_index), cmod->calibration());
@@ -72,7 +88,7 @@ void BatchSolver::addCalibrationPriors(const size_t camera_index,
         gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(5) << 50., 50., 0.001, 50., 50.).finished()));
   } else if (model_type == Camera::ModelType::CAL3_FISHEYE) {  // Cal3_Fisheye.
     const auto cmod = std::get<std::shared_ptr<CameraWrapper<gtsam::Cal3Fisheye>>>(camera->cameraVariant());
-    assert(cmod && "[BatchSolver::solve] Camera model is not of type Cal3Fisheye.");
+    assert(cmod && "[BatchSolver::addCalibrationPriors] Camera model is not of type Cal3Fisheye.");
 
     // Add calibration prior to initial values and graph.
     values.insert(K(camera_index), cmod->calibration());
@@ -81,6 +97,42 @@ void BatchSolver::addCalibrationPriors(const size_t camera_index,
         gtsam::noiseModel::Diagonal::Sigmas(
             (gtsam::Vector(9) << 50., 50., 0.001, 50., 50., 0.01, 0.001, 0.001, 0.001).finished()));
   }
+}
+
+void BatchSolver::addLandmarkPriors(const std::vector<Measurement>& measurements,
+                                    const gtsam::Point3Vector& pts3d_target,
+                                    gtsam::NonlinearFactorGraph& graph) const {
+  // Add landmark priors to graph.
+  for (const auto& meas : measurements) {
+    graph.addPrior(L(meas.point_id), pts3d_target.at(meas.point_id), options_.landmark_prior_noise_model);
+  }
+}
+
+void BatchSolver::addLandmarkFactors(const size_t camera_index, const std::shared_ptr<gtcal::Camera>& camera,
+                                     const size_t num_camera_update,
+                                     const std::vector<Measurement>& measurements,
+                                     gtsam::NonlinearFactorGraph& graph) const {
+  // Get camera model.
+  const auto model_type = camera->modelType();
+  if (model_type == Camera::ModelType::CAL3_S2) {
+    const auto cmod = std::get<std::shared_ptr<CameraWrapper<gtsam::Cal3_S2>>>(camera->cameraVariant());
+    assert(cmod && "[BatchSolver::addLandmarkFactors] Camera model is not of type Cal3_S2.");
+
+    // Add landmark factors to graph.
+    for (const auto& meas : measurements) {
+      // Landmark measurement.
+      const gtsam::Point2& uv = meas.uv;
+      // Add to graph.
+      graph.emplace_shared<gtsam::GeneralSFMFactor2<gtsam::Cal3_S2>>(
+          uv, options_.pixel_meas_noise_model, X(num_camera_update), L(meas.point_id), K(camera_index));
+    }
+  }
+}
+
+void BatchSolver::addPosePrior(const size_t camera_index, const gtsam::Pose3& pose_target_cam,
+                               gtsam::NonlinearFactorGraph& graph) const {
+  // Add pose prior to graph.
+  graph.addPrior(X(0), pose_target_cam, options_.pose_prior_noise_model);
 }
 
 }  // namespace gtcal

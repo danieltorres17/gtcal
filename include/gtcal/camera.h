@@ -171,6 +171,10 @@ public:
         camera_);
   }
 
+  gtsam::Pose3 pose() const {
+    return std::visit([](auto&& arg) -> gtsam::Pose3 { return arg->pose(); }, camera_);
+  }
+
   size_t height() const {
     return std::visit([](auto&& arg) -> size_t { return arg->height(); }, camera_);
   }

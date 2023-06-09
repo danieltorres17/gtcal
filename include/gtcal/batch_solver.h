@@ -60,7 +60,14 @@ public:
   void solve(const std::vector<Measurement>& measurements, State& state) const;
   void addCalibrationPriors(const size_t camera_index, const std::shared_ptr<gtcal::Camera>& camera,
                             gtsam::NonlinearFactorGraph& graph, gtsam::Values& values) const;
-  const gtsam::Point3Vector& targetPoints() const { return pts3d_target_; }                            
+  void addLandmarkPriors(const std::vector<Measurement>& measurements,
+                         const gtsam::Point3Vector& pts3d_target, gtsam::NonlinearFactorGraph& graph) const;
+  void addLandmarkFactors(const size_t camera_index, const std::shared_ptr<gtcal::Camera>& camera,
+                          const size_t num_camera_update, const std::vector<Measurement>& measurements,
+                          gtsam::NonlinearFactorGraph& graph) const;
+  void addPosePrior(const size_t camera_index, const gtsam::Pose3& pose_target_cam,
+                    gtsam::NonlinearFactorGraph& graph) const;
+  const gtsam::Point3Vector& targetPoints() const { return pts3d_target_; }
 
 private:
   const gtsam::Point3Vector pts3d_target_;
