@@ -17,12 +17,12 @@ TEST_F(GtcalTestUtils, TestGenerateGridPts3d) {
   const gtcal::utils::CalibrationTarget target(grid_spacing, num_rows, num_cols);
 
   // Check that the grid spacing and number of rows and columns were set correctly.
-  ASSERT_FLOAT_EQ(target.grid_spacing, grid_spacing);
-  ASSERT_EQ(target.num_rows, num_rows);
-  ASSERT_EQ(target.num_cols, num_cols);
+  ASSERT_FLOAT_EQ(target.gridSpacing(), grid_spacing);
+  ASSERT_EQ(target.numRows(), num_rows);
+  ASSERT_EQ(target.numCols(), num_cols);
 
   // Get target points in target frame.
-  ASSERT_EQ(target.grid_pts3d_target.size(), num_rows * num_cols);
+  ASSERT_EQ(target.pointsTarget().size(), num_rows * num_cols);
 
   // Define the expected target center point in target frame.
   const double x_center = (grid_spacing * num_cols) / 2;

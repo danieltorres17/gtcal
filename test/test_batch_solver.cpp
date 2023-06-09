@@ -40,7 +40,7 @@ std::vector<gtsam::Point3Vector> GenerateLandmarks(const gtsam::Pose3Vector& pos
   target_points.reserve(poses_target_cam.size());
   for (size_t ii = 0; ii < poses_target_cam.size(); ii++) {
     const gtcal::utils::CalibrationTarget target(0.15, 10, 13);
-    target_points.emplace_back(target.grid_pts3d_target);
+    target_points.emplace_back(target.pointsTarget());
   }
 
   return target_points;
@@ -76,6 +76,7 @@ protected:
 
   // Target points.
   const gtcal::utils::CalibrationTarget target{0.15, 10, 13};
+  const gtsam::Point3Vector target_points3d = target.pointsTarget();
 
   // Camera poses.
   const gtsam::Rot3 R0_target_cam = gtsam::Rot3::RzRyRx(0., 0., 0.);
@@ -121,9 +122,9 @@ TEST_F(BatchSolverFixture, BatchSolverStateInitialization) {
 // Tests the initialization of the batch solver object.
 TEST_F(BatchSolverFixture, Initialization) {
   // Create batch solver.
-  gtcal::BatchSolver batch_solver(target.grid_pts3d_target);
+  gtcal::BatchSolver batch_solver(target_points3d);
 
-  EXPECT_EQ(batch_solver.targetPoints().size(), target.grid_pts3d_target.size());
+  EXPECT_EQ(batch_solver.targetPoints().size(), target_points3d.size());
 }
 
 // Tests that camera calibration prior are successfully added to factor graph and initial values for the
@@ -134,7 +135,7 @@ TEST_F(BatchSolverFixture, CalibrationPriorCal3_S2) {
   gtsam::Values initial_estimate;
 
   // Create batch solver object.
-  gtcal::BatchSolver batch_solver(target.grid_pts3d_target);
+  gtcal::BatchSolver batch_solver(target_points3d);
   batch_solver.addCalibrationPriors(0, linear_cam, graph, initial_estimate);
 
   // Check the results.
@@ -151,7 +152,7 @@ TEST_F(BatchSolverFixture, CalibrationPriorCal3_Fisheye) {
   gtsam::Values initial_estimate;
 
   // Create batch solver object.
-  gtcal::BatchSolver batch_solver(target.grid_pts3d_target);
+  gtcal::BatchSolver batch_solver(target_points3d);
   batch_solver.addCalibrationPriors(0, fisheye_cam, graph, initial_estimate);
 
   // Check the results.
@@ -167,7 +168,7 @@ TEST_F(BatchSolverFixture, LandmarkFactorsCal3_S2) {
   gtsam::Values initial_estimate;
 
   // Create batch solver object.
-  gtcal::BatchSolver batch_solver(target.grid_pts3d_target);
+  gtcal::BatchSolver batch_solver(target_points3d);
   const size_t camera_index = 0;
   batch_solver.addCalibrationPriors(camera_index, linear_cam, graph, initial_estimate);
   EXPECT_EQ(graph.size(), 1);
@@ -176,8 +177,8 @@ TEST_F(BatchSolverFixture, LandmarkFactorsCal3_S2) {
   gtcal::BatchSolver::State state({linear_cam});
 
   // Get measurements.
-  const auto measurements = GenerateMeasurements(camera_index, linear_cam->pose(), target.grid_pts3d_target,
-                                                 state.cameras.at(camera_index));
+  const auto measurements =
+      GenerateMeasurements(camera_index, linear_cam->pose(), target_points3d, state.cameras.at(camera_index));
 
   // Get the number of times the camera has been updated and add landmark factors.
   const size_t num_camera_updates = state.num_camera_updates.at(camera_index);
@@ -190,7 +191,7 @@ TEST_F(BatchSolverFixture, LandmarkFactorsCal3_S2) {
   EXPECT_EQ(graph.size(), 2);
 
   // Add landmark priors.
-  batch_solver.addLandmarkPriors(measurements, target.grid_pts3d_target, graph);
+  batch_solver.addLandmarkPriors(measurements, target_points3d, graph);
   const size_t graph_size_post_priors = graph.size();
   const size_t expect_graph_size_post_priors = 2 + measurements.size();
   EXPECT_EQ(graph_size_post_priors, expect_graph_size_post_priors);

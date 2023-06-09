@@ -15,11 +15,16 @@ protected:
   const size_t num_rows = 10;
   const size_t num_cols = 13;
   const size_t num_target_pts = num_rows * num_cols;
+  const gtcal::utils::CalibrationTarget target{grid_spacing, num_rows, num_cols};
+  gtsam::Point3Vector target_points3d;
 
   // Camera model.
   std::shared_ptr<gtsam::Cal3Fisheye> K = nullptr;
 
-  void SetUp() override { K = std::make_shared<gtsam::Cal3Fisheye>(FX, FY, 0., CX, CY, 0., 0., 0., 0.); }
+  void SetUp() override {
+    target_points3d = target.pointsTarget();
+    K = std::make_shared<gtsam::Cal3Fisheye>(FX, FY, 0., CX, CY, 0., 0., 0., 0.);
+  }
 };
 
 TEST_F(PoseSolverFixture, SinglePoseTranslationOnly) {
@@ -45,22 +50,22 @@ TEST_F(PoseSolverFixture, SinglePoseTranslationOnly) {
 
   // Get measurements at second pose.
   std::vector<gtcal::Measurement> measurements;
-  measurements.reserve(target.grid_pts3d_target.size());
-  for (size_t ii = 0; ii < target.grid_pts3d_target.size(); ii++) {
-    const gtsam::Point3 pt3d_target = target.grid_pts3d_target.at(ii);
+  measurements.reserve(target_points3d.size());
+  for (size_t ii = 0; ii < target_points3d.size(); ii++) {
+    const gtsam::Point3 pt3d_target = target_points3d.at(ii);
     const gtsam::Point2 uv = camera.project(pt3d_target);
     if (gtcal::utils::FilterPixelCoords(uv, IMAGE_WIDTH, IMAGE_HEIGHT)) {
       measurements.push_back(gtcal::Measurement(uv, 0, ii));
     }
   }
   // Check that the number of measurements is equal to the number of 3D points.
-  EXPECT_EQ(measurements.size(), target.grid_pts3d_target.size());
+  EXPECT_EQ(measurements.size(), target_points3d.size());
 
   // Estimate solution.
   const gtcal::PoseSolverGtsam::Options options;
   gtcal::PoseSolverGtsam pose_solver(options);
   const gtsam::Pose3 pose_target_cam_estimated =
-      pose_solver.solve(pose0_target_cam, measurements, target.grid_pts3d_target, K);
+      pose_solver.solve(pose0_target_cam, measurements, target_points3d, K);
   pose_target_cam_estimated.print("pose_target_cam_estimated estimated:\n");
 
   EXPECT_TRUE(pose_target_cam_estimated.equals(pose1_target_cam, 1e-5));
@@ -88,21 +93,21 @@ TEST_F(PoseSolverFixture, FirstAndSecondPoses) {
   // Get measurements at second pose.
   gtsam::PinholeCamera<gtsam::Cal3Fisheye> camera(pose1_target_cam, *K);
   std::vector<gtcal::Measurement> measurements;
-  measurements.reserve(target.grid_pts3d_target.size());
-  for (size_t ii = 0; ii < target.grid_pts3d_target.size(); ii++) {
-    const gtsam::Point3 pt3d_target = target.grid_pts3d_target.at(ii);
+  measurements.reserve(target_points3d.size());
+  for (size_t ii = 0; ii < target_points3d.size(); ii++) {
+    const gtsam::Point3 pt3d_target = target_points3d.at(ii);
     const gtsam::Point2 uv = camera.project(pt3d_target);
     if (gtcal::utils::FilterPixelCoords(uv, IMAGE_WIDTH, IMAGE_HEIGHT)) {
       measurements.push_back(gtcal::Measurement(uv, 0, ii));
     }
   }
-  EXPECT_EQ(measurements.size(), target.grid_pts3d_target.size());
+  EXPECT_EQ(measurements.size(), target_points3d.size());
 
   // Create pose solver problem.
   const gtcal::PoseSolverGtsam::Options options;
   gtcal::PoseSolverGtsam pose_solver(options);
   const gtsam::Pose3 pose_target_cam_estimated =
-      pose_solver.solve(pose0_target_cam, measurements, target.grid_pts3d_target, K);
+      pose_solver.solve(pose0_target_cam, measurements, target_points3d, K);
   pose0_target_cam.print("pose0_target_cam:\n");
   pose_target_cam_estimated.print("pose_target_cam_estimated estimated:\n");
   pose1_target_cam.print("pose1_target_cam:\n");

@@ -13,53 +13,86 @@
 namespace gtcal {
 namespace utils {
 
-struct CalibrationTarget {
+class CalibrationTarget {
+public:
   CalibrationTarget(const double grid_spacing, const size_t num_rows, const size_t num_cols)
-    : grid_spacing(grid_spacing)
-    , num_rows(num_rows)
-    , num_cols(num_cols)
-    , grid_pts3d_target(generateGridPts3d(grid_spacing, num_rows, num_cols)) {}
-
-  const double grid_spacing;
-  const size_t num_rows;
-  const size_t num_cols;
-  const gtsam::Point3Vector grid_pts3d_target;
+    : grid_spacing_(grid_spacing)
+    , num_rows_(num_rows)
+    , num_cols_(num_cols)
+    , grid_pts3d_target_(generateGridPts3d(grid_spacing, num_rows, num_cols)) {}
 
   /**
-   * @brief Return the target center point in target frame so the z-coordinate is at 0.0.
+   * @brief Return target 3D points in the target frame.
+   *
+   * @return const gtsam::Point3Vector&
+   */
+  const gtsam::Point3Vector& pointsTarget() const { return grid_pts3d_target_; }
+
+  /**
+   * @brief Return the grid spacing.
+   *
+   * @return double
+   */
+  double gridSpacing() const { return grid_spacing_; }
+
+  /**
+   * @brief Return the number of rows.
+   *
+   * @return size_t
+   */
+  size_t numRows() const { return num_rows_; }
+
+  /**
+   * @brief Return the number of columns.
+   *
+   * @return size_t
+   */
+  size_t numCols() const { return num_cols_; }
+
+  /**
+   * @brief Return the target center point in target frame with a z-coordinate = 0.0.
    *
    * @return gtsam::Point3
    */
   gtsam::Point3 get3dCenter() const {
-    const double x_center = (grid_spacing * num_cols) / 2;
-    const double y_center = (grid_spacing * num_rows) / 2;
+    const double x_center = (grid_spacing_ * num_cols_) / 2;
+    const double y_center = (grid_spacing_ * num_rows_) / 2;
 
-    return {x_center, y_center, 0.0};
+    return {x_center, y_center, z_coordinate_};
   }
 
+private:
   /**
    * @brief Return vector with 3D points of calibration target in target frame using the target's grid
-   * spacing, number of rows and columns. TODO: probably just make this a static method.
+   * spacing, number of rows and columns.
    *
    * @param grid_spacing spacing between target points.
    * @param num_rows  number of rows.
    * @param num_cols number of cols.
    * @return gtsam::Point3Vector
    */
-  static gtsam::Point3Vector generateGridPts3d(const double grid_spacing, const size_t num_rows,
-                                               const size_t num_cols) {
+  gtsam::Point3Vector generateGridPts3d(const double grid_spacing, const size_t num_rows,
+                                        const size_t num_cols) {
     gtsam::Point3Vector grid_pts3d;
     grid_pts3d.reserve(num_rows * num_cols);
 
     for (size_t jj = 0; jj < num_cols; jj++) {
       for (size_t ii = 0; ii < num_rows; ii++) {
-        const gtsam::Point3 pt3d = (gtsam::Point3() << jj * grid_spacing, ii * grid_spacing, 0.0).finished();
+        const gtsam::Point3 pt3d =
+            (gtsam::Point3() << jj * grid_spacing, ii * grid_spacing, z_coordinate_).finished();
         grid_pts3d.push_back(pt3d);
       }
     }
 
     return grid_pts3d;
   }
+
+private:
+  const double grid_spacing_;
+  const size_t num_rows_;
+  const size_t num_cols_;
+  const gtsam::Point3Vector grid_pts3d_target_;
+  const double z_coordinate_ = 0.0;
 };
 
 static gtsam::Pose3Vector GeneratePosesAroundTarget(const CalibrationTarget& target, const double radius,

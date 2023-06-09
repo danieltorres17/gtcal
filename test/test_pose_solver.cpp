@@ -18,6 +18,7 @@ protected:
   const gtcal::utils::CalibrationTarget target{grid_spacing, num_rows, num_cols};
   double target_center_x = -1.0;
   double target_center_y = -1.0;
+  gtsam::Point3Vector target_points3d;
 
   // Camera model.
   std::shared_ptr<gtsam::Cal3Fisheye> K = nullptr;
@@ -27,6 +28,7 @@ protected:
     K = std::make_shared<gtsam::Cal3Fisheye>(gtsam::Cal3Fisheye(FX, FY, 0., CX, CY, 0., 0., 0., 0.));
 
     // Get the target center.
+    target_points3d = target.pointsTarget();
     const gtsam::Point3 target_center_pt3d = target.get3dCenter();
     target_center_x = target_center_pt3d.x();
     target_center_y = target_center_pt3d.y();
@@ -51,9 +53,9 @@ TEST_F(PoseSolverFixture, SinglePoseTranslationOnly) {
 
   // Get target point measurements at second pose.
   std::vector<gtcal::Measurement> measurements;
-  measurements.reserve(target.grid_pts3d_target.size());
-  for (size_t ii = 0; ii < target.grid_pts3d_target.size(); ii++) {
-    const gtsam::Point3& pt3d_target = target.grid_pts3d_target.at(ii);
+  measurements.reserve(target_points3d.size());
+  for (size_t ii = 0; ii < target_points3d.size(); ii++) {
+    const gtsam::Point3& pt3d_target = target_points3d.at(ii);
     const gtsam::Point2 uv = camera->project(pt3d_target);
     if (gtcal::utils::FilterPixelCoords(uv, camera->width(), camera->height())) {
       measurements.push_back(gtcal::Measurement(uv, 0, ii));
@@ -61,15 +63,14 @@ TEST_F(PoseSolverFixture, SinglePoseTranslationOnly) {
   }
 
   // Check that the number of measurements is equal to the number of 3D points (should be for this case).
-  EXPECT_EQ(measurements.size(), target.grid_pts3d_target.size());
+  EXPECT_EQ(measurements.size(), target.pointsTarget().size());
 
   // Create pose solver problem.
   gtcal::PoseSolver pose_solver(true);
   gtsam::Pose3 pose_target_cam_init =
       gtsam::Pose3(gtsam::Rot3::RzRyRx(0.001, -0.0002, 0.01),
                    gtsam::Point3(target_center_x - 0.002, target_center_y + 0.0, -0.81));
-  const bool success =
-      pose_solver.solve(measurements, target.grid_pts3d_target, camera, pose_target_cam_init);
+  const bool success = pose_solver.solve(measurements, target_points3d, camera, pose_target_cam_init);
   EXPECT_TRUE(success) << "Pose solver failed.";
 
   // Check the estimated solution.
@@ -100,9 +101,9 @@ TEST_F(PoseSolverFixture, FirstAndSecondPoses) {
 
   // Get target point measurements at second pose.
   std::vector<gtcal::Measurement> measurements;
-  measurements.reserve(target.grid_pts3d_target.size());
-  for (size_t ii = 0; ii < target.grid_pts3d_target.size(); ii++) {
-    const gtsam::Point3& pt3d_target = target.grid_pts3d_target.at(ii);
+  measurements.reserve(target_points3d.size());
+  for (size_t ii = 0; ii < target_points3d.size(); ii++) {
+    const gtsam::Point3& pt3d_target = target_points3d.at(ii);
     const gtsam::Point2 uv = camera->project(pt3d_target);
     if (gtcal::utils::FilterPixelCoords(uv, camera->width(), camera->height())) {
       measurements.push_back(gtcal::Measurement(uv, 0, ii));
@@ -110,13 +111,12 @@ TEST_F(PoseSolverFixture, FirstAndSecondPoses) {
   }
 
   // Check that the number of measurements is equal to the number of 3D points (should be for this case).
-  EXPECT_EQ(measurements.size(), target.grid_pts3d_target.size());
+  EXPECT_EQ(measurements.size(), target_points3d.size());
 
   // Create pose solver problem.
   gtcal::PoseSolver pose_solver(false);
   gtsam::Pose3 pose_target_cam_init = pose0_target_cam;
-  const bool success =
-      pose_solver.solve(measurements, target.grid_pts3d_target, camera, pose_target_cam_init);
+  const bool success = pose_solver.solve(measurements, target_points3d, camera, pose_target_cam_init);
   EXPECT_TRUE(success) << "Pose solver failed.";
 
   // Check estimated solution.

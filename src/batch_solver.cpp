@@ -26,17 +26,6 @@ BatchSolver::State::State(const std::vector<std::shared_ptr<Camera>>& camera_mod
 BatchSolver::BatchSolver(const gtsam::Point3Vector& pts3d_target, const Options& options)
   : pts3d_target_(pts3d_target), options_(options) {}
 
-void BatchSolver::updateCameraIndicesMap(const size_t camera_index, State& state) const {
-  // Check if the camera index is already in the map.
-  if (!state.camera_indices.contains(camera_index)) {
-    // If not, add it to the map.
-    state.camera_indices[camera_index] = state.numCameras();
-  }
-
-  // Update the number of camera updates.
-  state.num_camera_updates.at(state.camera_indices.at(camera_index)) += 1;
-}
-
 void BatchSolver::solve(const std::vector<Measurement>& measurements, State& state) const {
   // Check that all measurements are from the same camera.
   const size_t& camera_index = measurements.front().camera_id;

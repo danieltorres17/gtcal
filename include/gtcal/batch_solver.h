@@ -56,7 +56,6 @@ public:
 
 public:
   BatchSolver(const gtsam::Point3Vector& pts3d_target, const Options& options = Options());
-  void updateCameraIndicesMap(const size_t camera_index, State& state) const;
   void solve(const std::vector<Measurement>& measurements, State& state) const;
   void addCalibrationPriors(const size_t camera_index, const std::shared_ptr<gtcal::Camera>& camera,
                             gtsam::NonlinearFactorGraph& graph, gtsam::Values& values) const;
