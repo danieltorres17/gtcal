@@ -202,6 +202,18 @@ TEST_F(BatchSolverFixture, LandmarkFactorsCal3_S2) {
   EXPECT_EQ(graph_size_pose_factors, expected_graph_size_pose_factors);
 }
 
+// Tests that the batch solver is able to solve and that all relevant state variables are modified for a gtsam::Cal3_S2 model.
+TEST_F(BatchSolverFixture, Solve) {
+  // Create batch solver object.
+  gtcal::BatchSolver batch_solver(target_points3d);
+
+  // Get list of poses for camera in target frame.
+
+  // Create batch solver state.
+  gtcal::BatchSolver::State state({linear_cam});
+
+}
+
 TEST(BatchSolver, DISABLED_GtsamBatchSolver) {
   // Define initial camera parameters.
   gtsam::Cal3Fisheye K = gtsam::Cal3Fisheye(FX + 5, FY - 5, 0., CX - 5, CY + 5, 0.1, 0., 0., 0.);

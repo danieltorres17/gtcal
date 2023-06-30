@@ -3,9 +3,9 @@ Language: Cpp
 BasedOnStyle: Google
 
 AccessModifierOffset: -2
-BreakConstructorInitializers: BeforeComma
+BreakConstructorInitializers: BeforeColon
 ConstructorInitializerIndentWidth: 2
-ConstructorInitializerAllOnOneLineOrOnePerLine: true
+PackConstructorInitializers: BinPack
 ColumnLimit: 110
 ReflowComments: true
 SortIncludes: false

@@ -50,7 +50,7 @@ void BatchSolver::solve(const std::vector<Measurement>& measurements, State& sta
     addLandmarkPriors(measurements, pts3d_target_, graph);
     return;
   }
-  
+
   // Add landmark factors.
   addLandmarkFactors(camera_index, state.cameras.at(camera_index), num_camera_updates, measurements, graph);
 

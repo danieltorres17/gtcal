@@ -16,10 +16,8 @@ namespace utils {
 class CalibrationTarget {
 public:
   CalibrationTarget(const double grid_spacing, const size_t num_rows, const size_t num_cols)
-    : grid_spacing_(grid_spacing)
-    , num_rows_(num_rows)
-    , num_cols_(num_cols)
-    , grid_pts3d_target_(generateGridPts3d(grid_spacing, num_rows, num_cols)) {}
+    : grid_spacing_(grid_spacing), num_rows_(num_rows), num_cols_(num_cols),
+      grid_pts3d_target_(generateGridPts3d(grid_spacing, num_rows, num_cols)) {}
 
   /**
    * @brief Return target 3D points in the target frame.

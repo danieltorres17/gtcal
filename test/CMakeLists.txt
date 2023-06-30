@@ -1,5 +1,10 @@
 find_package(GTest REQUIRED)
 
+include_directories(
+  ${GTSAM_INCLUDE_DIR}
+  ${CERES_INCLUDE_DIRS}
+)
+
 add_executable(test_camera test_camera.cpp)
 target_link_libraries(test_camera GTest::GTest gtsam)
 
