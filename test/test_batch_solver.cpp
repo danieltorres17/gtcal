@@ -73,7 +73,10 @@ protected:
   std::shared_ptr<gtcal::Camera> linear_cam = nullptr;
 
   // Target points.
-  const gtcal::utils::CalibrationTarget target{0.15, 10, 13};
+  const double grid_spacing = 0.15;
+  const size_t num_rows = 10;
+  const size_t num_cols = 13;
+  const gtcal::utils::CalibrationTarget target{grid_spacing, num_rows, num_cols};
   const gtsam::Point3Vector target_points3d = target.pointsTarget();
 
   // Camera poses.
@@ -159,7 +162,8 @@ TEST_F(BatchSolverFixture, CalibrationPriorCal3_Fisheye) {
   EXPECT_TRUE(cal3_fisheye_prior.equals(K_fisheye));
 }
 
-// Tests that landmark factors are correctly added to the factor graph for a gtsam::Cal3_S2 model.
+// Tests that landmark factors are correctly added to the factor graph for a gtsam::Cal3_S2 model. Also
+// indirectly tests the addPosePrior method.
 TEST_F(BatchSolverFixture, LandmarkFactorsCal3_S2) {
   // Create graph and initial values.
   gtsam::NonlinearFactorGraph graph;
@@ -202,16 +206,37 @@ TEST_F(BatchSolverFixture, LandmarkFactorsCal3_S2) {
   EXPECT_EQ(graph_size_pose_factors, expected_graph_size_pose_factors);
 }
 
-// Tests that the batch solver is able to solve and that all relevant state variables are modified for a gtsam::Cal3_S2 model.
+// Tests that the batch solver is able to solve and that all relevant state variables are modified for a
+// gtsam::Cal3_S2 model.
 TEST_F(BatchSolverFixture, Solve) {
   // Create batch solver object.
   gtcal::BatchSolver batch_solver(target_points3d);
 
   // Get list of poses for camera in target frame.
+  const gtsam::Point3 target_center_pt3d = target.get3dCenter();
+  const double target_center_x = target_center_pt3d.x();
+  const double target_center_y = target_center_pt3d.y();
+  const gtsam::Point3 initial_offset = gtsam::Point3(target_center_x, target_center_y, -0.75);
+
+  // Get synthetic poses around target.
+  const auto poses_target_cam =
+      gtcal::utils::GeneratePosesAroundTarget(target, -3.0, -target_center_y / 2, initial_offset);
+
+  // Apply noise to ground truth poses to simulate front end solver estimates.
+  const double xyz_std_dev = 0.01;
+  const double rot_std_dev = 0.1;
+  gtsam::Pose3Vector poses_target_cam_noisy;
+  poses_target_cam_noisy.reserve(poses_target_cam.size());
+  for (const auto& pose_target_cam : poses_target_cam) {
+    poses_target_cam_noisy.push_back(gtcal::utils::ApplyNoise(pose_target_cam, xyz_std_dev, rot_std_dev));
+  }
+  std::cout << "gt pose 0: \n"
+            << gtcal::utils::PoseVectorFmt(gtcal::utils::PoseToVector(poses_target_cam.at(0))) << "\n";
+  std::cout << "noisy pose 0: \n"
+            << gtcal::utils::PoseVectorFmt(gtcal::utils::PoseToVector(poses_target_cam_noisy.at(0))) << "\n";
 
   // Create batch solver state.
   gtcal::BatchSolver::State state({linear_cam});
-
 }
 
 TEST(BatchSolver, DISABLED_GtsamBatchSolver) {

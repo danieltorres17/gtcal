@@ -11,6 +11,7 @@ endif()
 find_package(Eigen3 REQUIRED)
 find_package(GTSAM REQUIRED)
 find_package(Ceres REQUIRED)
+find_package(PCL REQUIRED)
 
 include_directories(
   ${CMAKE_SOURCE_DIR}/include
