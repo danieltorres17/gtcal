@@ -98,11 +98,11 @@ TEST_F(TranslationOnlyFixture, GtsamSinglePoseTranslationOnly) {
   // Estimate solution.
   const gtcal::PoseSolverGtsam::Options options;
   gtcal::PoseSolverGtsam pose_solver(options);
-  const gtsam::Pose3 pose_target_cam_estimated =
-      pose_solver.solve(pose0_target_cam, measurements, target_points3d, K);
-  pose_target_cam_estimated.print("pose_target_cam_estimated estimated:\n");
+  gtsam::Pose3 pose_target_cam_est = pose0_target_cam;
+  const bool success = pose_solver.solve(measurements, target_points3d, camera, pose_target_cam_est);
 
-  EXPECT_TRUE(pose_target_cam_estimated.equals(pose1_target_cam, 1e-5));
+  EXPECT_TRUE(success);
+  EXPECT_TRUE(pose_target_cam_est.equals(pose1_target_cam, 1e-5));
 }
 
 struct PoseSolverFixture : public BasePoseSolverFixture, public testing::Test {
@@ -169,13 +169,11 @@ TEST_F(PoseSolverFixture, GtsamFirstAndSecondPoses) {
   // Create pose solver problem.
   const gtcal::PoseSolverGtsam::Options options;
   gtcal::PoseSolverGtsam pose_solver(options);
-  const gtsam::Pose3 pose_target_cam_estimated =
-      pose_solver.solve(pose0_target_cam, measurements, target_points3d, K);
-  pose0_target_cam.print("pose0_target_cam:\n");
-  pose_target_cam_estimated.print("pose_target_cam_estimated estimated:\n");
-  pose1_target_cam.print("pose1_target_cam:\n");
+  gtsam::Pose3 pose_target_cam_est = pose0_target_cam;
+  const bool success = pose_solver.solve(measurements, target_points3d, camera, pose_target_cam_est);
 
-  EXPECT_TRUE(pose_target_cam_estimated.equals(pose1_target_cam, 1e-3));
+  EXPECT_TRUE(success);
+  EXPECT_TRUE(pose_target_cam_est.equals(pose1_target_cam, 1e-3));
 }
 
 int main(int argc, char** argv) {

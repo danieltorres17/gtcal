@@ -49,7 +49,7 @@ PoseSolver::PoseSolver(const bool verbose) {
 PoseSolver::~PoseSolver() {}
 
 bool PoseSolver::solve(const std::vector<Measurement>& measurements, const gtsam::Point3Vector& pts3d_target,
-                       const std::shared_ptr<gtcal::Camera>& cmod, gtsam::Pose3& pose_target_cam) const {
+                       const std::shared_ptr<gtcal::Camera>& camera, gtsam::Pose3& pose_target_cam) const {
   // Ensure the same number of pixels and 3D points were given.
   assert(measurements.size() == pts3d_target.size());
 
@@ -61,7 +61,7 @@ bool PoseSolver::solve(const std::vector<Measurement>& measurements, const gtsam
   // Create residuals and solve problem.
   ceres::Problem problem;
   for (const auto& meas : measurements) {
-    auto cost_functor = ReprojectionErrorResidual::Create(meas.uv, pts3d_target.at(meas.point_id), cmod);
+    auto cost_functor = ReprojectionErrorResidual::Create(meas.uv, pts3d_target.at(meas.point_id), camera);
     problem.AddResidualBlock(cost_functor, loss_function_, pose_target_cam_arr);
   }
 

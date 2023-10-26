@@ -6,6 +6,8 @@
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/Cal3Fisheye.h>
 
+#include "gtcal/camera.h"
+
 namespace gtcal {
 
 class Measurement;
@@ -30,9 +32,8 @@ public:
 public:
   PoseSolverGtsam(const Options& options);
 
-  gtsam::Pose3 solve(const gtsam::Pose3& pose_initial_target_cam,
-                     const std::vector<Measurement>& measurements, const gtsam::Point3Vector& pts3d_target,
-                     const gtsam::Cal3Fisheye::shared_ptr& cmod_params) const;
+  bool solve(const std::vector<Measurement>& measurements, const gtsam::Point3Vector& pts3d_target,
+             const std::shared_ptr<Camera>& camera, gtsam::Pose3& pose_initial_target_cam) const;
 
 private:
   const Options options_;

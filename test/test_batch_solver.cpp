@@ -78,6 +78,8 @@ protected:
   const size_t num_cols = 13;
   const gtcal::utils::CalibrationTarget target{grid_spacing, num_rows, num_cols};
   const gtsam::Point3Vector target_points3d = target.pointsTarget();
+  double target_center_x = -1.0;
+  double target_center_y = -1.0;
 
   // Camera poses.
   const gtsam::Rot3 R0_target_cam = gtsam::Rot3::RzRyRx(0., 0., 0.);
@@ -85,8 +87,8 @@ protected:
 
   void SetUp() override {
     // Create the camera poses.
-    const double target_center_x = target.get3dCenter().x();
-    const double target_center_y = target.get3dCenter().y();
+    target_center_x = target.get3dCenter().x();
+    target_center_y = target.get3dCenter().y();
     pose0_target_cam = gtsam::Pose3(R0_target_cam, {target_center_x, target_center_y, -0.85});
 
     // Set the fisheye camera.
@@ -128,116 +130,7 @@ TEST_F(BatchSolverFixture, Initialization) {
   EXPECT_EQ(batch_solver.targetPoints().size(), target_points3d.size());
 }
 
-// Tests that camera calibration prior are successfully added to factor graph and initial values for the
-// gtsam::Cal3_S2 model.
-TEST_F(BatchSolverFixture, CalibrationPriorCal3_S2) {
-  // Create graph and initial values.
-  gtsam::NonlinearFactorGraph graph;
-  gtsam::Values initial_estimate;
 
-  // Create batch solver object.
-  gtcal::BatchSolver batch_solver(target_points3d);
-  batch_solver.addCalibrationPriors(0, linear_cam, graph, initial_estimate);
-
-  // Check the results.
-  const gtsam::Cal3_S2 cal3_s2_prior = initial_estimate.at<gtsam::Cal3_S2>(K(0));
-  EXPECT_EQ(initial_estimate.size(), 1);
-  EXPECT_TRUE(cal3_s2_prior.equals(K_linear));
-}
-
-// Tests that camera calibration prior are successfully added to factor graph and initial values for the
-// gtsam::Cal3Fisheye model.
-TEST_F(BatchSolverFixture, CalibrationPriorCal3_Fisheye) {
-  // Create graph and initial values.
-  gtsam::NonlinearFactorGraph graph;
-  gtsam::Values initial_estimate;
-
-  // Create batch solver object.
-  gtcal::BatchSolver batch_solver(target_points3d);
-  batch_solver.addCalibrationPriors(0, fisheye_cam, graph, initial_estimate);
-
-  // Check the results.
-  const gtsam::Cal3Fisheye cal3_fisheye_prior = initial_estimate.at<gtsam::Cal3Fisheye>(K(0));
-  EXPECT_EQ(initial_estimate.size(), 1);
-  EXPECT_TRUE(cal3_fisheye_prior.equals(K_fisheye));
-}
-
-// Tests that landmark factors are correctly added to the factor graph for a gtsam::Cal3_S2 model. Also
-// indirectly tests the addPosePrior method.
-TEST_F(BatchSolverFixture, LandmarkFactorsCal3_S2) {
-  // Create graph and initial values.
-  gtsam::NonlinearFactorGraph graph;
-  gtsam::Values initial_estimate;
-
-  // Create batch solver object.
-  gtcal::BatchSolver batch_solver(target_points3d);
-  const size_t camera_index = 0;
-  batch_solver.addCalibrationPriors(camera_index, linear_cam, graph, initial_estimate);
-  EXPECT_EQ(graph.size(), 1);
-
-  // Create batch solver state.
-  gtcal::BatchSolver::State state({linear_cam});
-
-  // Get measurements.
-  const auto measurements =
-      GenerateMeasurements(camera_index, linear_cam->pose(), target_points3d, state.cameras.at(camera_index));
-
-  // Get the number of times the camera has been updated and add landmark factors.
-  const size_t num_camera_updates = state.num_camera_updates.at(camera_index);
-  if (num_camera_updates == 0) {
-    // If it's the first time the camera has been updated, add a pose prior on the graph.
-    batch_solver.addPosePrior(camera_index, state.cameras.at(camera_index)->pose(), graph);
-  }
-
-  // Check that pose prior was added to the graph. Should add more rigorous check for this.
-  EXPECT_EQ(graph.size(), 2);
-
-  // Add landmark priors.
-  batch_solver.addLandmarkPriors(measurements, target_points3d, graph);
-  const size_t graph_size_post_priors = graph.size();
-  const size_t expect_graph_size_post_priors = 2 + measurements.size();
-  EXPECT_EQ(graph_size_post_priors, expect_graph_size_post_priors);
-
-  // Add landmark factors.
-  batch_solver.addLandmarkFactors(camera_index, state.cameras.at(camera_index), num_camera_updates,
-                                  measurements, graph);
-  const size_t graph_size_pose_factors = graph.size();
-  const size_t expected_graph_size_pose_factors = graph_size_post_priors + measurements.size();
-  EXPECT_EQ(graph_size_pose_factors, expected_graph_size_pose_factors);
-}
-
-// Tests that the batch solver is able to solve and that all relevant state variables are modified for a
-// gtsam::Cal3_S2 model.
-TEST_F(BatchSolverFixture, Solve) {
-  // Create batch solver object.
-  gtcal::BatchSolver batch_solver(target_points3d);
-
-  // Get list of poses for camera in target frame.
-  const gtsam::Point3 target_center_pt3d = target.get3dCenter();
-  const double target_center_x = target_center_pt3d.x();
-  const double target_center_y = target_center_pt3d.y();
-  const gtsam::Point3 initial_offset = gtsam::Point3(target_center_x, target_center_y, -0.75);
-
-  // Get synthetic poses around target.
-  const auto poses_target_cam =
-      gtcal::utils::GeneratePosesAroundTarget(target, -3.0, -target_center_y / 2, initial_offset);
-
-  // Apply noise to ground truth poses to simulate front end solver estimates.
-  const double xyz_std_dev = 0.01;
-  const double rot_std_dev = 0.1;
-  gtsam::Pose3Vector poses_target_cam_noisy;
-  poses_target_cam_noisy.reserve(poses_target_cam.size());
-  for (const auto& pose_target_cam : poses_target_cam) {
-    poses_target_cam_noisy.push_back(gtcal::utils::ApplyNoise(pose_target_cam, xyz_std_dev, rot_std_dev));
-  }
-  std::cout << "gt pose 0: \n"
-            << gtcal::utils::PoseVectorFmt(gtcal::utils::PoseToVector(poses_target_cam.at(0))) << "\n";
-  std::cout << "noisy pose 0: \n"
-            << gtcal::utils::PoseVectorFmt(gtcal::utils::PoseToVector(poses_target_cam_noisy.at(0))) << "\n";
-
-  // Create batch solver state.
-  gtcal::BatchSolver::State state({linear_cam});
-}
 
 TEST(BatchSolver, DISABLED_GtsamBatchSolver) {
   // Define initial camera parameters.

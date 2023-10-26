@@ -72,13 +72,13 @@ public:
    *
    * @param measurements vector of measurements taken at new camera pose (pose we're trying to solve for).
    * @param pts3d_target target points in the target frame.
-   * @param cmod_params camera intrinsics.
+   * @param camera gtcal::Camera shared pointer.
    * @param pose_target_cam initial estimate for the camera pose in the target frame.
    * @return true
    * @return false
    */
   bool solve(const std::vector<Measurement>& measurements, const gtsam::Point3Vector& pts3d_target,
-             const std::shared_ptr<Camera>& cmod, gtsam::Pose3& pose_target_cam) const;
+             const std::shared_ptr<Camera>& camera, gtsam::Pose3& pose_target_cam) const;
 
 private:
   ceres::Solver::Options options_;
