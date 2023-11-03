@@ -145,6 +145,35 @@ TEST_F(CameraFixture, WidthHeight) {
   EXPECT_EQ(cal3_s2_camera.height(), IMAGE_HEIGHT);
 }
 
+// Tests the intrinsic parameter getter methods for the gtcal::Camera object.
+TEST_F(CameraFixture, Intrinsics) {
+  // Linear camera.
+  gtcal::Camera linear_cam;
+  linear_cam.setCameraModel<gtsam::Cal3_S2>(IMAGE_WIDTH, IMAGE_HEIGHT, *K_cal3_s2, pose0_target_cam);
+  EXPECT_EQ(linear_cam.numIntrinsicParameters(), 4);
+  const std::vector<double> linear_cam_params = linear_cam.intrinsicsParameters();
+  EXPECT_EQ(linear_cam_params.size(), 4);
+  EXPECT_EQ(linear_cam_params.at(0), K_cal3_s2->fx());
+  EXPECT_EQ(linear_cam_params.at(1), K_cal3_s2->fy());
+  EXPECT_EQ(linear_cam_params.at(2), K_cal3_s2->px());
+  EXPECT_EQ(linear_cam_params.at(3), K_cal3_s2->py());
+
+  // Fisheye camera.
+  gtcal::Camera fisheye_cam;
+  fisheye_cam.setCameraModel<gtsam::Cal3Fisheye>(IMAGE_WIDTH, IMAGE_HEIGHT, *K_fisheye, pose0_target_cam);
+  EXPECT_EQ(fisheye_cam.numIntrinsicParameters(), 8);
+  const std::vector<double> fisheye_cam_params = fisheye_cam.intrinsicsParameters();
+  EXPECT_EQ(fisheye_cam_params.size(), 8);
+  EXPECT_EQ(fisheye_cam_params.at(0), K_fisheye->fx());
+  EXPECT_EQ(fisheye_cam_params.at(1), K_fisheye->fy());
+  EXPECT_EQ(fisheye_cam_params.at(2), K_fisheye->px());
+  EXPECT_EQ(fisheye_cam_params.at(3), K_fisheye->py());
+  EXPECT_EQ(fisheye_cam_params.at(4), K_fisheye->k1());
+  EXPECT_EQ(fisheye_cam_params.at(5), K_fisheye->k2());
+  EXPECT_EQ(fisheye_cam_params.at(6), K_fisheye->k3());
+  EXPECT_EQ(fisheye_cam_params.at(7), K_fisheye->k4());
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

@@ -177,6 +177,53 @@ public:
   }
 
   /**
+   * @brief Return the number of intrinsics camera parameters. 4 for CAL3_S2 (fx, fy, cx, cy) and 8 for
+   * CAL3_FISHEYE (fx, fy, cx, cy, k0, k1, k2, k3). Note that the skew parameter is excluded.
+   * TODO: Support more camera models.
+   *
+   * @return int
+   */
+  int numIntrinsicParameters() const {
+    return std::visit(
+        [&](auto&& arg) -> int {
+          using T = std::decay_t<decltype(arg)>;
+          if constexpr (std::is_same_v<T, std::shared_ptr<CameraWrapper<gtsam::Cal3_S2>>>) {
+            return 4;
+          } else if constexpr (std::is_same_v<T, std::shared_ptr<CameraWrapper<gtsam::Cal3Fisheye>>>) {
+            return 8;
+          } else {
+            assert(false && "Invalid camera model.");
+          }
+        },
+        camera_);
+  }
+
+  /**
+   * @brief Return a vector with the camera's intrisincs. The vector will be of length 4 for CAL3_S2 (fx, fy,
+   * cx, cy) and length 8 for CAL3_FISHEYE (fx, fy, cx, cy, k0, k1, k2, k3) both ordered as listed here. Note
+   * that the skew parameter is excluded.
+   * TODO: Support more camera models.
+   *
+   * @return std::vector<double>
+   */
+  std::vector<double> intrinsicsParameters() const {
+    return std::visit(
+        [&](auto&& arg) -> std::vector<double> {
+          using T = std::decay_t<decltype(arg)>;
+          if constexpr (std::is_same_v<T, std::shared_ptr<CameraWrapper<gtsam::Cal3_S2>>>) {
+            const auto K = arg->calibration();
+            return {K.fx(), K.fy(), K.px(), K.py()};
+          } else if constexpr (std::is_same_v<T, std::shared_ptr<CameraWrapper<gtsam::Cal3Fisheye>>>) {
+            const auto K = arg->calibration();
+            return {K.fx(), K.fy(), K.px(), K.py(), K.k1(), K.k2(), K.k3(), K.k4()};
+          } else {
+            assert(false && "Invalid camera model.");
+          }
+        },
+        camera_);
+  }
+
+  /**
    * @brief Return gtsam::Pose3 denoting camera pose in world frame.
    *
    * @return gtsam::Pose3
