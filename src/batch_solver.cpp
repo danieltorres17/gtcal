@@ -26,35 +26,60 @@ BatchSolver::State::State(const std::vector<std::shared_ptr<Camera>>& camera_mod
 BatchSolver::BatchSolver(const gtsam::Point3Vector& pts3d_target, const Options& options)
   : pts3d_target_(pts3d_target), options_(options) {}
 
-void BatchSolver::solve(const std::vector<Measurement>& measurements, State& state) const {
+gtsam::Values BatchSolver::solve(State& state) const {
+  // Update ISAM and get updates.
+  state.isam.update(state.graph, state.current_estimate);
+  for (size_t ii = 1; ii < state.num_isam_iterations; ii++) {
+    state.isam.update();
+  }
+
+  // Clear graph and reset values.
+  state.graph.resize(0);
+  state.current_estimate.clear();
+
+  return state.isam.calculateEstimate();
+}
+
+void BatchSolver::addPriorsAndFactors(const std::vector<Measurement>& measurements, State& state) const {
   // Check that all measurements are from the same camera.
-  const size_t& camera_index = measurements.front().camera_id;
+  const size_t camera_index = measurements.front().camera_id;
   const bool all_same_camera =
       std::all_of(measurements.begin(), measurements.end(),
                   [&camera_index](const Measurement& meas) { return meas.camera_id == camera_index; });
-  assert(all_same_camera && "[BatchSolver::solve] All measurements must be from the same camera.");
+  assert(all_same_camera &&
+         "[BatchSolver::addPriorsAndFactors] All measurements must be from the same camera.");
 
-  // Create graph and initial values.
-  gtsam::NonlinearFactorGraph graph;
-  gtsam::Values initial_values;
+  // If this is the first time a solution is being found, add the landmark priors and locations to the graph.
+  // Also add the landmark points to the current estimate.
+  if (!state.first_iteration_complete) {
+    // Add priors to graph.
+    addLandmarkPriors(pts3d_target_, state.graph);
+    // Points to values.
+    for (size_t ii = 0; ii < pts3d_target_.size(); ii++) {
+      state.current_estimate.insert(L(ii), pts3d_target_.at(ii));
+    }
 
-  // Add camera calibration prior to initial values and graph.
-  addCalibrationPriors(camera_index, state.cameras.at(camera_index), graph, initial_values);
+    // Add camera calibration prior to initial values and graph.
+    addCalibrationPriors(camera_index, state.cameras.at(camera_index), state.graph, state.current_estimate);
 
-  // Get the number of times the camera has been updated and add landmark factors.
-  const size_t& num_camera_updates = state.num_camera_updates.at(camera_index);
-  if (num_camera_updates == 0) {
-    // If it's the first time the camera has been updated, add a pose prior on the graph.
-    addPosePrior(camera_index, state.cameras.at(camera_index)->pose(), graph);
-    // Also add landmark priors.
-    addLandmarkPriors(measurements, pts3d_target_, graph);
-    return;
+    state.first_iteration_complete = true;
   }
 
-  // Add landmark factors.
-  addLandmarkFactors(camera_index, state.cameras.at(camera_index), num_camera_updates, measurements, graph);
+  // Check the number of times a camera has been updated.
+  const size_t num_camera_updates = state.num_camera_updates.at(camera_index);
+  if (num_camera_updates == 0) {
+    // If it's the first time the camera has been updated, add a pose prior on the graph.
+    addPosePrior(camera_index, state.cameras.at(camera_index)->pose(), state.graph);
+  }
 
-  // Update iSAM with the new factors.
+  // Add pose initial estimate to the values object.
+  state.current_estimate.insert(X(num_camera_updates), state.cameras.at(camera_index)->pose());
+
+  // Add landmark factors.
+  addLandmarkFactors(camera_index, state.cameras.at(camera_index), num_camera_updates, measurements,
+                     state.graph);
+
+  state.num_camera_updates.at(camera_index) += 1;
 }
 
 void BatchSolver::addCalibrationPriors(const size_t camera_index,
@@ -86,12 +111,11 @@ void BatchSolver::addCalibrationPriors(const size_t camera_index,
   }
 }
 
-void BatchSolver::addLandmarkPriors(const std::vector<Measurement>& measurements,
-                                    const gtsam::Point3Vector& pts3d_target,
+void BatchSolver::addLandmarkPriors(const gtsam::Point3Vector& pts3d_target,
                                     gtsam::NonlinearFactorGraph& graph) const {
   // Add landmark priors to graph.
-  for (const auto& meas : measurements) {
-    graph.addPrior(L(meas.point_id), pts3d_target.at(meas.point_id), options_.landmark_prior_noise_model);
+  for (size_t ii = 0; ii < pts3d_target.size(); ii++) {
+    graph.addPrior(L(ii), pts3d_target.at(ii), options_.landmark_prior_noise_model);
   }
 }
 
@@ -107,11 +131,9 @@ void BatchSolver::addLandmarkFactors(const size_t camera_index, const std::share
 
     // Add landmark factors to graph.
     for (const auto& meas : measurements) {
-      // Landmark measurement.
-      const gtsam::Point2& uv = meas.uv;
-      // Add to graph.
+      // Add landmark measurement to graph.
       graph.emplace_shared<gtsam::GeneralSFMFactor2<gtsam::Cal3_S2>>(
-          uv, options_.pixel_meas_noise_model, X(num_camera_update), L(meas.point_id), K(camera_index));
+          meas.uv, options_.pixel_meas_noise_model, X(num_camera_update), L(meas.point_id), K(camera_index));
     }
   }
 }

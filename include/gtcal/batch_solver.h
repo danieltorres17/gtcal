@@ -16,19 +16,22 @@ class BatchSolver {
 public:
   // State of the solver.
   struct State {
-    // To keep track of the camera order in the solver.
-    std::unordered_map<size_t, size_t> camera_indices;
-
     // To keep track of camera models.
     std::vector<std::shared_ptr<Camera>> cameras;
 
     // To keep track of the number of times each camera's model and pose has been updated.
     std::vector<size_t> num_camera_updates;
 
+    // To keep track of whether the first iteration has been done. Used to see if landmarks need to be added
+    // to the ISAM2 instance.
+    bool first_iteration_complete = false;
+
     // Solver components.
     gtsam::ISAM2 isam;
     gtsam::NonlinearFactorGraph graph;
     gtsam::Values current_estimate;
+    // Total number of times to run ISAM2::update(). Including initial update.
+    size_t num_isam_iterations = 1;
 
     /**
      * @brief Return the number of cameras.
@@ -58,9 +61,9 @@ public:
 
     Options()
       : pose_prior_noise_model(gtsam::noiseModel::Diagonal::Sigmas(
-            (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.1)).finished()))
-      , landmark_prior_noise_model(gtsam::noiseModel::Isotropic::Sigma(3, 1e-8))
-      , pixel_meas_noise_model(gtsam::noiseModel::Isotropic::Sigma(2, 1.0)) {}
+            (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3::Constant(0.01)).finished())),
+        landmark_prior_noise_model(gtsam::noiseModel::Isotropic::Sigma(3, 1e-8)),
+        pixel_meas_noise_model(gtsam::noiseModel::Isotropic::Sigma(2, 1.0)) {}
   };
 
 public:
@@ -69,10 +72,18 @@ public:
   /**
    * @brief
    *
+   * @param state
+   * @return gtsam::Values
+   */
+  [[nodiscard]] gtsam::Values solve(State& state) const;
+
+  /**
+   * @brief
+   *
    * @param measurements
    * @param state
    */
-  void solve(const std::vector<Measurement>& measurements, State& state) const;
+  void addPriorsAndFactors(const std::vector<Measurement>& measurements, State& state) const;
 
   /**
    * @brief
@@ -88,12 +99,10 @@ public:
   /**
    * @brief
    *
-   * @param measurements
    * @param pts3d_target
    * @param graph
    */
-  void addLandmarkPriors(const std::vector<Measurement>& measurements,
-                         const gtsam::Point3Vector& pts3d_target, gtsam::NonlinearFactorGraph& graph) const;
+  void addLandmarkPriors(const gtsam::Point3Vector& pts3d_target, gtsam::NonlinearFactorGraph& graph) const;
 
   /**
    * @brief

@@ -9,6 +9,7 @@
 #include <gtsam/slam/SmartProjectionFactor.h>
 #include "gtsam/nonlinear/LevenbergMarquardtOptimizer.h"
 #include <gtsam/nonlinear/Values.h>
+#include <gtsam/nonlinear/utilities.h>
 
 #include <vector>
 
@@ -131,7 +132,115 @@ TEST_F(BatchSolverFixture, Initialization) {
   EXPECT_EQ(batch_solver.targetPoints().size(), target_points3d.size());
 }
 
-TEST_F(BatchSolverFixture, OutlineFactorGraph) {
+// Tests the solve method (and the addPriorsAndFactors method implicitly).
+TEST_F(BatchSolverFixture, Solve) {
+  // Get set of ground truth camera poses in the target frame.
+  const gtsam::Pose3Vector poses_target_cam_gt = gtcal::utils::DefaultCameraPoses({pose0_target_cam});
+
+  // Create a batch solver state with the linear camera.
+  gtcal::BatchSolver::State state({linear_cam});
+  state.num_isam_iterations = 3;
+  EXPECT_EQ(state.cameras.size(), 1);
+  EXPECT_EQ(state.num_camera_updates.size(), 1);
+  EXPECT_EQ(state.num_camera_updates.at(0), 0);
+  EXPECT_FALSE(state.first_iteration_complete);
+
+  // Create batch solver.
+  gtcal::BatchSolver batch_solver(target_points3d);
+
+  // To keep track of the noisy pose initial pose estimates given.
+  std::vector<gtsam::Pose3> poses_target_cam_noisy;
+  poses_target_cam_noisy.reserve(poses_target_cam_gt.size());
+
+  // To keep track of the graph and values size at each iteration.
+  std::vector<size_t> graph_sizes, values_sizes;
+  graph_sizes.reserve(poses_target_cam_gt.size());
+  values_sizes.reserve(poses_target_cam_gt.size());
+
+  // To keep track of latest estimates.
+  gtsam::Values updated_values;
+
+  for (size_t ii = 0; ii < poses_target_cam_gt.size(); ii++) {
+    // Update the camera pose for current iteration to generate measurements.
+    state.cameras.at(0)->setCameraPose(poses_target_cam_gt.at(ii));
+    const std::vector<gtcal::Measurement> measurements =
+        GenerateMeasurements(0, target_points3d, state.cameras.at(0));
+    ASSERT_GT(measurements.size(), 0);
+
+    // Generate noisy pose estimate to initialize camera with.
+    const gtsam::Pose3 pose_target_cam_noisy =
+        gtcal::utils::ApplyNoise(poses_target_cam_gt.at(ii), 0.01, 0.15);
+    poses_target_cam_noisy.push_back(pose_target_cam_noisy);
+    state.cameras.at(0)->setCameraPose(pose_target_cam_noisy);
+    // Add priors and factors to the state graph and values.
+    batch_solver.addPriorsAndFactors(measurements, state);
+    // For the first iteration, make sure the correct number of factors and initial values were added to both
+    // the graph and values. Note the problem isn't solved for the first iteration.
+    if (ii == 0) {
+      // Check the state member values.
+      EXPECT_EQ(state.cameras.size(), 1);
+      EXPECT_EQ(state.num_camera_updates.size(), 1);
+      EXPECT_EQ(state.num_camera_updates.at(0), 1);
+      EXPECT_TRUE(state.first_iteration_complete);
+
+      // Check the current values object. Expecting the pose (1), calibration prior (1) to be added as well as
+      // the landmark locations (130 with default target configuration).
+      EXPECT_EQ(state.current_estimate.size(), 2 + target_points3d.size());
+      EXPECT_TRUE(state.current_estimate.at<gtsam::Cal3_S2>(K(0)).equals(K_linear));
+      EXPECT_TRUE(state.current_estimate.at<gtsam::Pose3>(X(0)).equals(poses_target_cam_noisy.at(0)));
+      for (size_t ii = 0; ii < target_points3d.size(); ii++) {
+        const double err_norm =
+            (state.current_estimate.at<gtsam::Point3>(L(ii)) - target_points3d.at(ii)).norm();
+        EXPECT_FLOAT_EQ(err_norm, 0.);
+      }
+
+      // Check the graph. Expecting it to have 1 calibration factor, 1 pose prior and 2 *
+      // target_points3d.size() number of factors to account for the target point priors (since it's the first
+      // pass through) and landmarks.
+      EXPECT_EQ(state.graph.size(), 2 + 2 * target_points3d.size());
+
+      // Save the graph and value object sizes.
+      graph_sizes.push_back(state.graph.size());
+      values_sizes.push_back(state.current_estimate.size());
+      continue;
+    }
+
+    // Solve the problem.
+    updated_values = batch_solver.solve(state);
+    EXPECT_EQ(state.graph.size(), 0);
+    EXPECT_EQ(state.current_estimate.size(), 0);
+    EXPECT_EQ(updated_values.size(), 2 + ii + target_points3d.size());
+  }
+
+  // Check the updated pose estimates.
+  const gtsam::Values poses_target_cam_est = gtsam::utilities::allPose3s(updated_values);
+  ASSERT_EQ(poses_target_cam_gt.size(), poses_target_cam_noisy.size());
+  ASSERT_EQ(poses_target_cam_gt.size(), poses_target_cam_est.size());
+  for (size_t ii = 0; ii < poses_target_cam_gt.size(); ii++) {
+    std::cout << "Updated pose check iteration: " << ii << "\n";
+    std::cout << "pose_target_cam_noisy:\n";
+    std::cout << poses_target_cam_noisy.at(ii).matrix() << "\n";
+    std::cout << "pose0_target_cam_est:\n";
+    const gtsam::Pose3 pose_target_cam_est_ii = poses_target_cam_est.at<gtsam::Pose3>(X(ii));
+    std::cout << pose_target_cam_est_ii.matrix() << "\n";
+    std::cout << "pose0_target_cam_gt:\n";
+    std::cout << poses_target_cam_gt.at(ii).matrix() << "\n\n";
+    EXPECT_TRUE(pose_target_cam_est_ii.equals(poses_target_cam_gt.at(ii), 1e-2));
+  }
+
+  // Check the calibration.
+  const gtsam::Cal3_S2 calib_est = updated_values.at<gtsam::Cal3_S2>(K(0));
+  std::cout << "Ground truth calibration:\n";
+  std::cout << K_linear << "\n";
+  std::cout << "Estimated calibration:\n";
+  std::cout << calib_est << "\n";
+  EXPECT_TRUE(K_linear.equals(calib_est, 1));
+}
+
+// Tests that the calibration problem can be solved in a batch form using a singular factor graph rather than
+// the ISAM2 framework. Used as a reference for the gtcal::BatchSolver implementation and it's also a cool
+// exercise. Disabled since the batch solver implementation covers the same thing.
+TEST_F(BatchSolverFixture, DISABLED_OutlineFactorGraph) {
   // Get sample poses.
   const gtsam::Pose3Vector poses_target_cam_gt = gtcal::utils::DefaultCameraPoses({pose0_target_cam});
   ASSERT_EQ(poses_target_cam_gt.size(), 5);
@@ -196,8 +305,10 @@ TEST_F(BatchSolverFixture, OutlineFactorGraph) {
   }
 }
 
-// Tests a rough outline of the gtsam batch solver using a single linear camera.
-TEST_F(BatchSolverFixture, OutlineIsam) {
+// Tests that the calibration problem can be solved in a batch form using the ISAM2 framework. Used as a
+// reference for the gtcal::BatchSolver implementation and it's also a cool exercise. Disabled since the
+// batch solver implementation covers the same thing.
+TEST_F(BatchSolverFixture, DISABLED_OutlineIsam) {
   // Get sample poses.
   const gtsam::Pose3Vector poses_target_cam_gt = gtcal::utils::DefaultCameraPoses({pose0_target_cam});
   ASSERT_EQ(poses_target_cam_gt.size(), 5);
@@ -286,7 +397,6 @@ TEST_F(BatchSolverFixture, OutlineIsam) {
       // Clear the factor graph and values for the next iteration.
       graph.resize(0);
       initial_estimate.clear();
-
     }
   }
   gtsam::Values final_res = isam.calculateEstimate();
@@ -301,96 +411,6 @@ TEST_F(BatchSolverFixture, OutlineIsam) {
   // See final calibration estimate.
   std::cout << "Final calibration estimate: \n";
   std::cout << final_res.at<gtsam::Cal3_S2>(K(0)) << "\n";
-}
-
-TEST(BatchSolver, DISABLED_GtsamBatchSolver) {
-  // Define initial camera parameters.
-  gtsam::Cal3Fisheye K = gtsam::Cal3Fisheye(FX + 5, FY - 5, 0., CX - 5, CY + 5, 0.1, 0., 0., 0.);
-
-  // Define set of camera poses.
-  const size_t num_poses = 3;
-  const gtsam::Pose3Vector poses_target_cam = GenerateCameraPoses();
-
-  // Define vector of vector with target points seen at each pose (for base case, we're assuming all target
-  // points can be seen at each camera pose.
-  std::vector<gtsam::Point3Vector> points = GenerateLandmarks(poses_target_cam);
-
-  // Create iSAM2 object to solve calibration problem incrementally.
-  gtsam::ISAM2Params parameters;
-  parameters.relinearizeThreshold = 0.01;
-  parameters.relinearizeSkip = 1;
-  gtsam::ISAM2 isam(parameters);
-
-  // Create factor graph and values to hold the new data.
-  gtsam::NonlinearFactorGraph graph;
-  gtsam::Values initial_estimate;
-
-  // Define the camera observation noise model, 1px stddev.
-  auto measurement_noise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
-
-  // Add prior on the calibration.
-  auto cal_noise = gtsam::noiseModel::Diagonal::Sigmas(
-      (gtsam::Vector(9) << 50., 50., 0.001, 50., 50., 0.01, 0.001, 0.001, 0.001).finished());
-  graph.addPrior(gtsam::Symbol('K', 0), K, cal_noise);
-  initial_estimate.insert(gtsam::Symbol('K', 0), K);
-
-  // Loop over poses, adding the observations to iSAM incrementally.
-  for (size_t ii = 0; ii < poses_target_cam.size(); ii++) {
-    // Add factors for each landmark observation.
-    for (size_t jj = 0; jj < points.at(ii).size(); jj++) {
-      gtsam::PinholeCamera<gtsam::Cal3Fisheye> camera(poses_target_cam.at(ii), K);
-      gtsam::Point2 uv = camera.project(points.at(ii).at(jj));
-      graph.emplace_shared<gtsam::GeneralSFMFactor2<gtsam::Cal3Fisheye>>(
-          uv, measurement_noise, gtsam::Symbol('x', ii), gtsam::Symbol('l', jj), gtsam::Symbol('K', 0));
-    }
-
-    // Add an initial guess for the current pose. Intentionally initialize the variables off from the ground
-    // truth.
-    static gtsam::Pose3 k_delta_pose(gtsam::Rot3::Rodrigues(-0.05, 0.05, 0.1),
-                                     gtsam::Point3(0.01, -0.01, 0.015));
-    initial_estimate.insert(gtsam::Symbol('x', ii), poses_target_cam.at(ii) * k_delta_pose);
-
-    // If it's the first iteration, add a prior on the first pose to set the coordinate frame and a prior on
-    // the first landmark to set the scale. Also as iSAM2 solves incrementally, we must wait until each is
-    // observed at least twice before adding it to iSAM.
-    if (ii == 0) {
-      // Add a prior on pose x0, 30cm std on x, y, z and 0.1 rad on roll, pitch and yaw.
-      static auto k_pose_prior = gtsam::noiseModel::Diagonal::Sigmas(
-          (gtsam::Vector(6) << gtsam::Vector3::Constant(0.25), gtsam::Vector3::Constant(0.01)).finished());
-      graph.addPrior(gtsam::Symbol('x', 0), poses_target_cam.at(0), k_pose_prior);
-
-      // Add a prior on landmark l0.
-      static auto k_point_prior = gtsam::noiseModel::Isotropic::Sigma(3, 1e-8);
-      graph.addPrior(gtsam::Symbol('l', 0), points.at(0).at(0), k_point_prior);
-
-      // Add an initial guess to all observed landmarks. Intentionally initialize the variables off from the
-      // ground truth.
-      // static gtsam::Point3 k_delta_point(0.005, 0.002, -0.005);
-      static gtsam::Point3 k_delta_point(0., 0., 0.);
-      for (size_t jj = 0; jj < points.at(ii).size(); jj++) {
-        initial_estimate.insert<gtsam::Point3>(gtsam::Symbol('l', jj), points.at(ii).at(jj) + k_delta_point);
-      }
-    } else {
-      // Update iSAM with the new factors.
-      isam.update(graph, initial_estimate);
-      // Each call to iSAM2 update(*) performs one iteration of the iterative nonlinear solver. If accuracy
-      // is desired at the expense of time, update(*) can be called additional times to perform multiple
-      // optimizer iterations every step.
-      isam.update();
-      gtsam::Values current_estimate = isam.calculateEstimate();
-      std::cout << "****************************************************\n";
-      std::cout << "Frame " << ii << ": \n";
-      current_estimate.print("Current estimate: ");
-
-      // Clear the factor graph and values for the next iteration.
-      graph.resize(0);
-      initial_estimate.clear();
-
-      // gtsam::Cal3Fisheye cal_values = current_estimate.at<gtsam::Cal3Fisheye>(gtsam::Symbol('K', 0));
-      // std::cout << "cal_values: \n";
-      // cal_values.print("");
-    }
-  }
 }
 
 int main(int argc, char** argv) {
