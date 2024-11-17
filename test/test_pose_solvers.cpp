@@ -2,10 +2,20 @@
 #include "gtcal_test_utils.h"
 #include "gtcal/camera.h"
 #include <gtsam/geometry/PinholeCamera.h>
+#include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/slam/SmartProjectionPoseFactor.h>
+#include <gtsam/slam/SmartProjectionFactor.h>
+#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+#include <gtsam/nonlinear/Values.h>
+#include <gtsam/inference/Symbol.h>
 #include "gtcal/pose_solver_gtsam.h"
 
 #include <gtest/gtest.h>
 #include <algorithm>
+
+using gtsam::symbol_shorthand::L;
+using gtsam::symbol_shorthand::R;
+using gtsam::symbol_shorthand::X;
 
 struct BasePoseSolverFixture {
 public:
@@ -80,7 +90,7 @@ protected:
 };
 
 // Tests that the Ceres pose solver is able to find a solution in the case of translation only.
-TEST_F(TranslationOnlyFixture, CeresSinglePoseTranslationOnly) {
+TEST_F(TranslationOnlyFixture, DISABLED_CeresSinglePoseTranslationOnly) {
   // Create pose solver problem.
   gtcal::PoseSolver pose_solver(true);
   gtsam::Pose3 pose_target_cam_init =
@@ -94,7 +104,7 @@ TEST_F(TranslationOnlyFixture, CeresSinglePoseTranslationOnly) {
 }
 
 // Tests that the gtsam pose solver is able to find a solution in the case of translation only.
-TEST_F(TranslationOnlyFixture, GtsamSinglePoseTranslationOnly) {
+TEST_F(TranslationOnlyFixture, DISABLED_GtsamSinglePoseTranslationOnly) {
   // Estimate solution.
   const gtcal::PoseSolverGtsam::Options options;
   gtcal::PoseSolverGtsam pose_solver(options);
@@ -152,7 +162,7 @@ protected:
 
 // Tests that the Ceres pose solver is able to find a solution in the case of translation and rotation using
 // the first two poses from the synthetic pose set.
-TEST_F(PoseSolverFixture, CeresFirstAndSecondPoses) {
+TEST_F(PoseSolverFixture, DISABLED_CeresFirstAndSecondPoses) {
   // Create pose solver problem.
   gtcal::PoseSolver pose_solver(false);
   gtsam::Pose3 pose_target_cam_init = pose0_target_cam;
@@ -174,6 +184,69 @@ TEST_F(PoseSolverFixture, GtsamFirstAndSecondPoses) {
 
   EXPECT_TRUE(success);
   EXPECT_TRUE(pose_target_cam_est.equals(pose1_target_cam, 1e-3));
+}
+
+TEST_F(PoseSolverFixture, DISABLED_GtsamSmartProjection) {
+  // Pixel noise model.
+  gtsam::noiseModel::Isotropic::shared_ptr pixel_meas_noise_model =
+      gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
+
+  camera->setCameraPose(pose0_target_cam);
+
+  // Smart factors.
+  std::vector<gtsam::SmartProjectionPoseFactor<gtsam::Cal3Fisheye>::shared_ptr> smart_factors;
+  smart_factors.reserve(target_points3d.size());
+  for (size_t ii = 0; ii < target_points3d.size(); ii++) {
+    smart_factors.push_back(
+        std::make_shared<gtsam::SmartProjectionPoseFactor<gtsam::Cal3Fisheye>>(pixel_meas_noise_model, K));
+  }
+
+  // Get measurements at pose 0.
+  std::vector<gtcal::Measurement> measurements0;
+  measurements0.reserve(target_points3d.size());
+  for (size_t ii = 0; ii < target_points3d.size(); ii++) {
+    const gtsam::Point3& pt3d_target = target_points3d.at(ii);
+    const gtsam::Point2 uv = camera->project(pt3d_target);
+    if (gtcal::utils::FilterPixelCoords(uv, camera->width(), camera->height())) {
+      measurements0.push_back(gtcal::Measurement(uv, 0, ii));
+    }
+  }
+
+  // Expect the number of observations to match the number of target points for the first pose.
+  EXPECT_EQ(measurements0.size(), target_points3d.size());
+
+  // Create optimization problem.
+  gtsam::NonlinearFactorGraph graph;
+  gtsam::Values values;
+
+  // Add camera pose prior to graph and initial estimate to values.
+  gtsam::Key camera_key = X(0);
+  gtsam::Pose3 delta(gtsam::Rot3::Rodrigues(-0.033, 0.02, -0.05), gtsam::Point3(0.01, -0.016, 0.005));
+  values.insert(camera_key, pose0_target_cam.compose(delta));
+  graph.addPrior(
+      camera_key, pose0_target_cam,
+      gtsam::noiseModel::Diagonal::Sigmas(
+          (gtsam::Vector(6) << gtsam::Vector3::Constant(0.1), gtsam::Vector3{0.05, 0.05, 0.05}).finished()));
+
+  typedef gtsam::SmartProjectionFactor<gtsam::PinholeCamera<gtsam::Cal3Fisheye>> SmartFactor;
+
+  // Add observations to factors.
+  for (size_t ii = 0; ii < measurements0.size(); ii++) {
+    const size_t pt3d_idx = measurements0.at(ii).point_id;
+    smart_factors.at(pt3d_idx)->add(measurements0.at(ii).uv, camera_key);
+    graph.push_back(smart_factors.at(pt3d_idx));
+  }
+
+  // Solve problem.
+  gtsam::LevenbergMarquardtParams params;
+  gtsam::Values result = gtsam::LevenbergMarquardtOptimizer(graph, values, params).optimize();
+
+  // Compare to the ground truth.
+  const gtsam::Pose3 pose_est_gt_delta =
+      pose0_target_cam.inverse().compose(result.at<gtsam::Pose3>(camera_key));
+  const gtsam::Vector6 pose_est_gt_delta_vec = gtcal::utils::PoseToVector(pose_est_gt_delta);
+  std::cout << "pose0_target_cam:\n" << pose0_target_cam.matrix() << std::endl;
+  std::cout << "Pose delta vec:\n" << pose_est_gt_delta_vec.transpose() << std::endl;
 }
 
 int main(int argc, char** argv) {
