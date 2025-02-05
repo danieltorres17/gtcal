@@ -36,19 +36,8 @@ gtsam::Pose3Vector GenerateCameraPoses() {
   return poses_target_cam;
 }
 
-std::vector<gtsam::Point3Vector> GenerateLandmarks(const gtsam::Pose3Vector& poses_target_cam) {
-  std::vector<gtsam::Point3Vector> target_points;
-  target_points.reserve(poses_target_cam.size());
-  for (size_t ii = 0; ii < poses_target_cam.size(); ii++) {
-    const gtcal::utils::CalibrationTarget target(0.15, 10, 13);
-    target_points.emplace_back(target.pointsTarget());
-  }
-
-  return target_points;
-}
-
 std::vector<gtcal::Measurement> GenerateMeasurements(const size_t camera_index,
-                                                     const gtsam::Point3Vector& pts3d_target,
+                                                     const std::vector<gtsam::Point3>& pts3d_target,
                                                      const std::shared_ptr<gtcal::Camera>& cmod) {
   std::vector<gtcal::Measurement> measurements;
   measurements.reserve(pts3d_target.size());
@@ -70,7 +59,7 @@ struct BatchSolverFixture : public testing::Test {
 protected:
   // Camera calibrations and models.
   const gtsam::Cal3Fisheye K_fisheye = gtsam::Cal3Fisheye(FX, FY, 0., CX, CY, 0., 0., 0., 0.);
-  const gtsam::Cal3_S2 K_linear = gtsam::Cal3_S2(FX, FY, 0., CX, CY);
+  const gtsam::Cal3_S2 K_linear = gtsam::Cal3_S2(FX + 10, FY, 0., CX, CY);
   std::shared_ptr<gtcal::Camera> fisheye_cam = nullptr;
   std::shared_ptr<gtcal::Camera> linear_cam = nullptr;
 
@@ -78,8 +67,8 @@ protected:
   const double grid_spacing = 0.15;
   const size_t num_rows = 10;
   const size_t num_cols = 13;
-  const gtcal::utils::CalibrationTarget target{grid_spacing, num_rows, num_cols};
-  const gtsam::Point3Vector target_points3d = target.pointsTarget();
+  const gtcal::CalibrationTarget target{grid_spacing, num_rows, num_cols};
+  const std::vector<gtsam::Point3> target_points3d = target.pointsTarget();
   double target_center_x = -1.0;
   double target_center_y = -1.0;
 
@@ -89,8 +78,8 @@ protected:
 
   void SetUp() override {
     // Create the camera poses.
-    target_center_x = target.get3dCenter().x();
-    target_center_y = target.get3dCenter().y();
+    target_center_x = target.targetCenter().x();
+    target_center_y = target.targetCenter().y();
     pose0_target_cam = gtsam::Pose3(R0_target_cam, {target_center_x, target_center_y, -0.85});
 
     // Set the fisheye camera.

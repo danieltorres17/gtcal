@@ -77,7 +77,7 @@ public:
    * @return true
    * @return false
    */
-  bool solve(const std::vector<Measurement>& measurements, const gtsam::Point3Vector& pts3d_target,
+  bool solve(const std::vector<Measurement>& measurements, const std::vector<gtsam::Point3>& pts3d_target,
              const std::shared_ptr<Camera>& camera, gtsam::Pose3& pose_target_cam) const;
 
 private:

@@ -23,7 +23,7 @@ BatchSolver::State::State(const std::vector<std::shared_ptr<Camera>>& camera_mod
   isam = gtsam::ISAM2(params);
 }
 
-BatchSolver::BatchSolver(const gtsam::Point3Vector& pts3d_target, const Options& options)
+BatchSolver::BatchSolver(const std::vector<gtsam::Point3>& pts3d_target, const Options& options)
   : pts3d_target_(pts3d_target), options_(options) {}
 
 gtsam::Values BatchSolver::solve(State& state) const {
@@ -111,7 +111,7 @@ void BatchSolver::addCalibrationPriors(const size_t camera_index,
   }
 }
 
-void BatchSolver::addLandmarkPriors(const gtsam::Point3Vector& pts3d_target,
+void BatchSolver::addLandmarkPriors(const std::vector<gtsam::Point3>& pts3d_target,
                                     gtsam::NonlinearFactorGraph& graph) const {
   // Add landmark priors to graph.
   for (size_t ii = 0; ii < pts3d_target.size(); ii++) {

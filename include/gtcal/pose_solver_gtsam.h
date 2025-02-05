@@ -32,7 +32,7 @@ public:
 public:
   PoseSolverGtsam(const Options& options);
 
-  bool solve(const std::vector<Measurement>& measurements, const gtsam::Point3Vector& pts3d_target,
+  bool solve(const std::vector<Measurement>& measurements, const std::vector<gtsam::Point3>& pts3d_target,
              const std::shared_ptr<const Camera>& camera, gtsam::Pose3& pose_initial_target_cam) const;
 
 private:

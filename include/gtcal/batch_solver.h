@@ -67,7 +67,7 @@ public:
   };
 
 public:
-  BatchSolver(const gtsam::Point3Vector& pts3d_target, const Options& options = Options());
+  BatchSolver(const std::vector<gtsam::Point3>& pts3d_target, const Options& options = Options());
 
   /**
    * @brief
@@ -102,7 +102,7 @@ public:
    * @param pts3d_target
    * @param graph
    */
-  void addLandmarkPriors(const gtsam::Point3Vector& pts3d_target, gtsam::NonlinearFactorGraph& graph) const;
+  void addLandmarkPriors(const std::vector<gtsam::Point3>& pts3d_target, gtsam::NonlinearFactorGraph& graph) const;
 
   /**
    * @brief
@@ -130,12 +130,12 @@ public:
   /**
    * @brief
    *
-   * @return const gtsam::Point3Vector&
+   * @return const std::vector<gtsam::Point3>&
    */
-  const gtsam::Point3Vector& targetPoints() const { return pts3d_target_; }
+  const std::vector<gtsam::Point3>& targetPoints() const { return pts3d_target_; }
 
 private:
-  const gtsam::Point3Vector pts3d_target_;
+  const std::vector<gtsam::Point3> pts3d_target_;
   const Options options_;
 };
 

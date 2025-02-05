@@ -14,9 +14,9 @@ protected:
   const size_t num_rows = 10;
   const size_t num_cols = 13;
   const size_t num_target_pts = num_rows * num_cols;
-  const gtcal::utils::CalibrationTarget target = {grid_spacing, num_rows, num_cols};
-  const gtsam::Point3 target_center_pt3d = target.get3dCenter();
-  const gtsam::Point3Vector target_points3d = target.pointsTarget();
+  const gtcal::CalibrationTarget target = {grid_spacing, num_cols, num_rows};
+  const gtsam::Point3 target_center_pt3d = target.targetCenter();
+  const std::vector<gtsam::Point3> target_points3d = target.pointsTarget();
   const double target_center_x = target_center_pt3d.x();
   const double target_center_y = target_center_pt3d.y();
 

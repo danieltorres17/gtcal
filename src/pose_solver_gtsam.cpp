@@ -17,14 +17,14 @@ namespace gtcal {
 PoseSolverGtsam::PoseSolverGtsam(const Options& options) : options_(options) {}
 
 bool PoseSolverGtsam::solve(const std::vector<Measurement>& measurements,
-                            const gtsam::Point3Vector& pts3d_target,
+                            const std::vector<gtsam::Point3>& pts3d_target,
                             const std::shared_ptr<const Camera>& camera,
                             gtsam::Pose3& pose_initial_target_cam) const {
   // Create smart factors based on camera calibration type.
   auto CreateSmartFactors = [&pts3d_target, &options = this->options_,
                              &camera]<typename T>(const std::shared_ptr<T>& K)
       -> std::vector<typename gtsam::SmartProjectionPoseFactor<T>::shared_ptr> {
-    std::vector<gtsam::SmartProjectionPoseFactor<T>::shared_ptr> smart_factors;
+    std::vector<typename gtsam::SmartProjectionPoseFactor<T>::shared_ptr> smart_factors;
     smart_factors.reserve(pts3d_target.size());
     for (const auto& pt : pts3d_target) {
       smart_factors.push_back(

@@ -48,7 +48,8 @@ PoseSolver::PoseSolver(const bool verbose) {
 
 PoseSolver::~PoseSolver() {}
 
-bool PoseSolver::solve(const std::vector<Measurement>& measurements, const gtsam::Point3Vector& pts3d_target,
+bool PoseSolver::solve(const std::vector<Measurement>& measurements,
+                       const std::vector<gtsam::Point3>& pts3d_target,
                        const std::shared_ptr<gtcal::Camera>& camera, gtsam::Pose3& pose_target_cam) const {
   // Ensure the same number of pixels and 3D points were given.
   assert(measurements.size() == pts3d_target.size());
