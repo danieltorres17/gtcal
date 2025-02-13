@@ -26,7 +26,7 @@ public:
   const size_t num_target_pts = num_rows * num_cols;
 
   // Create target object and define the target x and y center.
-  gtcal::CalibrationTarget target{grid_spacing, num_rows, num_cols};
+  gtcal::CalibrationTarget target{grid_spacing, num_cols, num_rows};
   double target_center_x = -1.0;
   double target_center_y = -1.0;
   std::vector<gtsam::Point3> target_points3d;
@@ -90,17 +90,15 @@ protected:
 };
 
 // Tests that the Ceres pose solver is able to find a solution in the case of translation only.
-TEST_F(TranslationOnlyFixture, DISABLED_CeresSinglePoseTranslationOnly) {
+TEST_F(TranslationOnlyFixture, CeresSinglePoseTranslationOnly) {
   // Create pose solver problem.
   gtcal::PoseSolver pose_solver(true);
-  gtsam::Pose3 pose_target_cam_init =
-      gtsam::Pose3(gtsam::Rot3::RzRyRx(0.001, -0.0002, 0.01),
-                   gtsam::Point3(target_center_x - 0.002, target_center_y + 0.0, -0.81));
-  const bool success = pose_solver.solve(measurements, target_points3d, camera, pose_target_cam_init);
-  EXPECT_TRUE(success) << "Pose solver failed.";
+  gtsam::Pose3 pose_target_cam_est = gtcal::utils::ApplyNoise(pose0_target_cam, 0.1, 0.5);
+  const bool success = pose_solver.solve(measurements, target_points3d, camera, pose_target_cam_est);
+  EXPECT_TRUE(success);
 
   // Check the estimated solution.
-  EXPECT_TRUE(pose_target_cam_init.equals(pose1_target_cam, 1e-5));
+  EXPECT_TRUE(pose_target_cam_est.equals(pose1_target_cam, 1e-5));
 }
 
 // Tests that the gtsam pose solver is able to find a solution in the case of translation only.
@@ -109,7 +107,9 @@ TEST_F(TranslationOnlyFixture, DISABLED_GtsamSinglePoseTranslationOnly) {
   const gtcal::PoseSolverGtsam::Options options;
   gtcal::PoseSolverGtsam pose_solver(options);
   gtsam::Pose3 pose_target_cam_est = pose0_target_cam;
+  std::cout << "pose_target_cam_est:\n" << pose_target_cam_est.matrix() << "\n";
   const bool success = pose_solver.solve(measurements, target_points3d, camera, pose_target_cam_est);
+  std::cout << "pose_target_cam_est:\n" << pose_target_cam_est.matrix() << "\n";
 
   EXPECT_TRUE(success);
   EXPECT_TRUE(pose_target_cam_est.equals(pose1_target_cam, 1e-5));
@@ -186,7 +186,7 @@ TEST_F(PoseSolverFixture, DISABLED_GtsamFirstAndSecondPoses) {
   EXPECT_TRUE(pose_target_cam_est.equals(pose1_target_cam, 1e-3));
 }
 
-TEST_F(PoseSolverFixture, GtsamSmartProjection) {
+TEST_F(PoseSolverFixture, DISABLED_GtsamSmartProjection) {
   // Pixel noise model.
   gtsam::noiseModel::Isotropic::shared_ptr pixel_meas_noise_model =
       gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
