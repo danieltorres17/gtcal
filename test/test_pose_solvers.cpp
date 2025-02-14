@@ -9,6 +9,7 @@
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/inference/Symbol.h>
 #include "gtcal/pose_solver_gtsam.h"
+#include "gtcal/viz.hpp"
 
 #include <gtest/gtest.h>
 #include <algorithm>
@@ -88,6 +89,16 @@ protected:
     EXPECT_EQ(measurements.size(), target.pointsTarget().size());
   }
 };
+
+TEST_F(TranslationOnlyFixture, Visualizer) {
+  gtcal::Visualizer viz;
+  std::thread viz_thread([&]() { viz.run(); });
+
+  for (size_t ii = 0; ii < 25; ii++) {
+    viz.update(target_points3d, {pose0_target_cam});
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+}
 
 // Tests that the Ceres pose solver is able to find a solution in the case of translation only.
 TEST_F(TranslationOnlyFixture, CeresSinglePoseTranslationOnly) {

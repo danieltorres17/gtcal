@@ -29,4 +29,8 @@ add_library(batch_solver src/batch_solver.cpp)
 target_include_directories(batch_solver PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR})
 target_link_libraries(batch_solver gtsam calibration_target)
 
+add_library(visualizer src/viz.cpp)
+target_include_directories(visualizer PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} ${PANGOLIN_INCLUDE_DIR})
+target_link_libraries(visualizer ${Pangolin_LIBRARIES})
+
 add_subdirectory(test)
