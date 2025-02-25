@@ -6,6 +6,8 @@ namespace gtcal {
 
 class CalibrationTarget {
 public:
+  using Ptr = std::shared_ptr<CalibrationTarget>;
+
   CalibrationTarget(const double grid_spacing, const size_t num_cols, const size_t num_rows);
 
   const std::vector<gtsam::Point3>& pointsTarget() const { return grid_pts3d_target_; }

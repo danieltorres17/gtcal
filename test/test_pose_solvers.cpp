@@ -3,6 +3,8 @@
 #include "gtcal/camera.h"
 #include <gtsam/geometry/PinholeCamera.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/nonlinear/NonlinearEquality.h>
+#include <gtsam/slam/ProjectionFactor.h>
 #include <gtsam/slam/SmartProjectionPoseFactor.h>
 #include <gtsam/slam/SmartProjectionFactor.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
@@ -90,15 +92,15 @@ protected:
   }
 };
 
-TEST_F(TranslationOnlyFixture, Visualizer) {
-  gtcal::Visualizer viz;
-  std::thread viz_thread([&]() { viz.run(); });
+// TEST_F(TranslationOnlyFixture, Visualizer) {
+//   gtcal::Visualizer viz;
+//   std::thread viz_thread([&]() { viz.run(); });
 
-  for (size_t ii = 0; ii < 25; ii++) {
-    viz.update(target_points3d, {pose0_target_cam});
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  }
-}
+//   for (size_t ii = 0; ii < 25; ii++) {
+//     viz.update(target_points3d, {pose0_target_cam});
+//     std::this_thread::sleep_for(std::chrono::seconds(1));
+//   }
+// }
 
 // Tests that the Ceres pose solver is able to find a solution in the case of translation only.
 TEST_F(TranslationOnlyFixture, CeresSinglePoseTranslationOnly) {
@@ -184,7 +186,49 @@ TEST_F(PoseSolverFixture, DISABLED_CeresFirstAndSecondPoses) {
   EXPECT_TRUE(pose1_target_cam.equals(pose_target_cam_init, 1e-7));
 }
 
-// Tests that the gtsam pose solver is able to find a solution in the case of translation and rotation using
+TEST_F(PoseSolverFixture, GenericProjectionFactor) {
+  // Get measurements at pose 0.
+  camera->setCameraPose(pose0_target_cam);
+  std::vector<gtcal::Measurement> meas0;
+  meas0.reserve(target_points3d.size());
+
+  for (size_t ii = 0; ii < target_points3d.size(); ii++) {
+    const gtsam::Point3& pt3d_target = target_points3d.at(ii);
+    const gtsam::Point2 uv = camera->project(pt3d_target);
+    if (gtcal::utils::FilterPixelCoords(uv, camera->width(), camera->height())) {
+      meas0.emplace_back(uv, 0, ii);
+    }
+  }
+
+  gtsam::NonlinearFactorGraph graph;
+  gtsam::Pose3 delta(gtsam::Rot3::RzRyRx(0., 0., -0.4), gtsam::Point3(-0.156, 0.0, 0.1));
+  gtsam::Pose3 pose_initial_est = pose0_target_cam.compose(delta);
+  std::cout << "pose_initial_est:\n" << pose_initial_est.matrix() << "\n";
+  gtsam::Values initial_estimate;
+  initial_estimate.insert(X(0), pose_initial_est);
+  auto meas_noise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
+
+  for (size_t ii = 0; ii < meas0.size(); ii++) {
+    graph.emplace_shared<gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3Fisheye>>(
+        meas0.at(ii).uv, meas_noise, X(0), L(ii), K);
+    graph.emplace_shared<gtsam::NonlinearEquality<gtsam::Point3>>(L(ii), target_points3d.at(ii));
+    if (!initial_estimate.exists(L(ii))) {
+      initial_estimate.insert(L(ii), target_points3d.at(ii));
+    }
+  }
+
+  gtsam::LevenbergMarquardtParams params;
+  params.relativeErrorTol = 1e-6;
+  params.maxIterations = 100;
+  gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial_estimate, params);
+  gtsam::Values result = optimizer.optimize();
+  std::cout << "pt0_est: " << result.at<gtsam::Point3>(L(0)) << "\n";
+  gtsam::Pose3 pose_est = result.at<gtsam::Pose3>(X(0));
+  std::cout << "pose_est:\n" << pose_est.matrix() << "\n";
+  std::cout << "pose_gt:\n" << pose0_target_cam.matrix() << "\n";
+}
+
+// Tests that the gtsam 3 solver is able to find a solution in the case of translation and rotation using
 // the first two poses from the synthetic pose set.
 TEST_F(PoseSolverFixture, DISABLED_GtsamFirstAndSecondPoses) {
   // Create pose solver problem.
