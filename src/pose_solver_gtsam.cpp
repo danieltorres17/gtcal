@@ -1,5 +1,5 @@
 #include "gtcal/pose_solver_gtsam.hpp"
-#include "gtcal/utils.hpp"
+#include "gtcal/measurement.hpp"
 
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/NonlinearEquality.h>

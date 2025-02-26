@@ -2,7 +2,7 @@
 
 #include "gtcal/camera.hpp"
 #include "gtcal/calibration_target.hpp"
-#include "gtcal/utils.hpp"
+#include "gtcal/measurement.hpp"
 
 namespace gtcal {
 

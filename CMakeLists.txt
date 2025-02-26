@@ -38,4 +38,8 @@ add_library(visualizer src/viz.cpp)
 target_include_directories(visualizer PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} ${PANGOLIN_INCLUDE_DIR})
 target_link_libraries(visualizer ${Pangolin_LIBRARIES})
 
+add_library(calibration_ctx src/calibration_ctx.cpp)
+target_include_directories(calibration_ctx PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR})
+target_link_libraries(calibration_ctx gtsam calibration_target pose_solver pose_solver_gtsam)
+
 add_subdirectory(test)

@@ -4,6 +4,7 @@
 #include <ceres/loss_function.h>
 
 #include "gtcal/camera.hpp"
+#include "gtcal/measurement.hpp"
 #include "gtcal/utils.hpp"
 
 namespace gtcal {

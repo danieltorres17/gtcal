@@ -94,6 +94,7 @@ private:
 
 class Camera {
 public:
+  using Ptr = std::shared_ptr<Camera>;
   using CameraVariant = std::variant<std::shared_ptr<CameraWrapper<gtsam::Cal3_S2>>,
                                      std::shared_ptr<CameraWrapper<gtsam::Cal3Fisheye>>>;
 

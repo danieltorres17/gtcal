@@ -1,4 +1,5 @@
 #include "gtcal/simulator.hpp"
+#include "gtcal/utils.hpp"
 
 namespace gtcal {
 
