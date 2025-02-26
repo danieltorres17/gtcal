@@ -1,8 +1,8 @@
-#include "gtcal/utils.h"
-#include "gtcal_test_utils.h"
+#include "gtcal/utils.hpp"
+#include "gtcal_test_utils.hpp"
 #include <gtest/gtest.h>
 
-#include "gtcal/camera.h"
+#include "gtcal/camera.hpp"
 
 #include <vector>
 #include <algorithm>

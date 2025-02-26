@@ -19,7 +19,7 @@ namespace utils {
 static constexpr double NaN = std::numeric_limits<double>::quiet_NaN();
 
 static bool FilterPixelCoords(const gtsam::Point2& uv, const size_t image_width, const size_t image_height) {
-  if ((uv.x() >= 0) && (uv.y() >= 0) && (uv.x() < image_width) && (uv.y() < image_height)) {
+  if ((uv.x() >= 0.) && (uv.y() >= 0.) && (uv.x() < image_width) && (uv.y() < image_height)) {
     return true;
   }
   return false;

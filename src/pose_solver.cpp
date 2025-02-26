@@ -1,4 +1,4 @@
-#include "gtcal/pose_solver.h"
+#include "gtcal/pose_solver.hpp"
 #include <gtsam/geometry/PinholeCamera.h>
 
 namespace gtcal {

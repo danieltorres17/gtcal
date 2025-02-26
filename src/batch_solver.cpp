@@ -1,5 +1,5 @@
-#include "gtcal/batch_solver.h"
-#include "gtcal/utils.h"
+#include "gtcal/batch_solver.hpp"
+#include "gtcal/utils.hpp"
 
 #include <gtsam/slam/ProjectionFactor.h>
 #include <gtsam/slam/GeneralSFMFactor.h>

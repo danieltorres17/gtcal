@@ -1,7 +1,7 @@
-#include "gtcal_test_utils.h"
-#include "gtcal/camera.h"
-#include "gtcal/utils.h"
-#include "gtcal/batch_solver.h"
+#include "gtcal_test_utils.hpp"
+#include "gtcal/camera.hpp"
+#include "gtcal/utils.hpp"
+#include "gtcal/batch_solver.hpp"
 #include <gtest/gtest.h>
 
 #include <gtsam/slam/ProjectionFactor.h>

@@ -1,6 +1,6 @@
-#include "gtcal/pose_solver.h"
-#include "gtcal_test_utils.h"
-#include "gtcal/camera.h"
+#include "gtcal/pose_solver.hpp"
+#include "gtcal_test_utils.hpp"
+#include "gtcal/camera.hpp"
 #include <gtsam/geometry/PinholeCamera.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/NonlinearEquality.h>
@@ -10,7 +10,7 @@
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/inference/Symbol.h>
-#include "gtcal/pose_solver_gtsam.h"
+#include "gtcal/pose_solver_gtsam.hpp"
 #include "gtcal/viz.hpp"
 
 #include <gtest/gtest.h>
@@ -92,16 +92,6 @@ protected:
   }
 };
 
-// TEST_F(TranslationOnlyFixture, Visualizer) {
-//   gtcal::Visualizer viz;
-//   std::thread viz_thread([&]() { viz.run(); });
-
-//   for (size_t ii = 0; ii < 25; ii++) {
-//     viz.update(target_points3d, {pose0_target_cam});
-//     std::this_thread::sleep_for(std::chrono::seconds(1));
-//   }
-// }
-
 // Tests that the Ceres pose solver is able to find a solution in the case of translation only.
 TEST_F(TranslationOnlyFixture, CeresSinglePoseTranslationOnly) {
   // Create pose solver problem.
@@ -115,17 +105,16 @@ TEST_F(TranslationOnlyFixture, CeresSinglePoseTranslationOnly) {
 }
 
 // Tests that the gtsam pose solver is able to find a solution in the case of translation only.
-TEST_F(TranslationOnlyFixture, DISABLED_GtsamSinglePoseTranslationOnly) {
+TEST_F(TranslationOnlyFixture, GtsamSinglePoseTranslationOnly) {
   // Estimate solution.
   const gtcal::PoseSolverGtsam::Options options;
   gtcal::PoseSolverGtsam pose_solver(options);
-  gtsam::Pose3 pose_target_cam_est = pose0_target_cam;
-  std::cout << "pose_target_cam_est:\n" << pose_target_cam_est.matrix() << "\n";
-  const bool success = pose_solver.solve(measurements, target_points3d, camera, pose_target_cam_est);
-  std::cout << "pose_target_cam_est:\n" << pose_target_cam_est.matrix() << "\n";
-
-  EXPECT_TRUE(success);
-  EXPECT_TRUE(pose_target_cam_est.equals(pose1_target_cam, 1e-5));
+  gtsam::Pose3 pose_target_cam_initial = pose0_target_cam;
+  const auto pose_target_cam_est_opt =
+      pose_solver.solve(measurements, target_points3d, camera, pose_target_cam_initial);
+  EXPECT_TRUE(pose_target_cam_est_opt);
+  const gtsam::Pose3& pose_target_cam_est = *pose_target_cam_est_opt;
+  EXPECT_TRUE(pose_target_cam_est.equals(pose1_target_cam, 1e-3));
 }
 
 struct PoseSolverFixture : public BasePoseSolverFixture, public testing::Test {
@@ -175,7 +164,7 @@ protected:
 
 // Tests that the Ceres pose solver is able to find a solution in the case of translation and rotation using
 // the first two poses from the synthetic pose set.
-TEST_F(PoseSolverFixture, DISABLED_CeresFirstAndSecondPoses) {
+TEST_F(PoseSolverFixture, CeresFirstAndSecondPoses) {
   // Create pose solver problem.
   gtcal::PoseSolver pose_solver(false);
   gtsam::Pose3 pose_target_cam_init = pose0_target_cam;
@@ -230,101 +219,16 @@ TEST_F(PoseSolverFixture, GenericProjectionFactor) {
 
 // Tests that the gtsam 3 solver is able to find a solution in the case of translation and rotation using
 // the first two poses from the synthetic pose set.
-TEST_F(PoseSolverFixture, DISABLED_GtsamFirstAndSecondPoses) {
+TEST_F(PoseSolverFixture, GtsamFirstAndSecondPoses) {
   // Create pose solver problem.
   const gtcal::PoseSolverGtsam::Options options;
   gtcal::PoseSolverGtsam pose_solver(options);
-  gtsam::Pose3 pose_target_cam_est = pose0_target_cam;
-  const bool success = pose_solver.solve(measurements, target_points3d, camera, pose_target_cam_est);
-
-  EXPECT_TRUE(success);
+  gtsam::Pose3 pose_target_cam_initial = pose0_target_cam;
+  const auto pose_target_cam_est_opt =
+      pose_solver.solve(measurements, target_points3d, camera, pose_target_cam_initial);
+  EXPECT_TRUE(pose_target_cam_est_opt);
+  const gtsam::Pose3& pose_target_cam_est = *pose_target_cam_est_opt;
   EXPECT_TRUE(pose_target_cam_est.equals(pose1_target_cam, 1e-3));
-}
-
-TEST_F(PoseSolverFixture, DISABLED_GtsamSmartProjection) {
-  // Pixel noise model.
-  gtsam::noiseModel::Isotropic::shared_ptr pixel_meas_noise_model =
-      gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
-
-  // Pose noise model.
-  auto pose_noise = gtsam::noiseModel::Diagonal::Sigmas(
-      (gtsam::Vector(6) << gtsam::Vector3::Constant(0.5), gtsam::Vector3{0.1, 0.1, 0.1}).finished());
-
-  // Smart factors for each landmark.
-  std::vector<gtsam::SmartProjectionPoseFactor<gtsam::Cal3Fisheye>::shared_ptr> smart_factors;
-  smart_factors.reserve(target_points3d.size());
-  for (size_t ii = 0; ii < target_points3d.size(); ii++) {
-    smart_factors.push_back(
-        std::make_shared<gtsam::SmartProjectionPoseFactor<gtsam::Cal3Fisheye>>(pixel_meas_noise_model, K));
-  }
-
-  // Get measurements at pose 0.
-  camera->setCameraPose(pose0_target_cam);
-  std::vector<gtcal::Measurement> measurements0;
-  measurements0.reserve(target_points3d.size());
-  for (size_t ii = 0; ii < target_points3d.size(); ii++) {
-    const gtsam::Point3& pt3d_target = target_points3d.at(ii);
-    const gtsam::Point2 uv = camera->project(pt3d_target);
-    if (gtcal::utils::FilterPixelCoords(uv, camera->width(), camera->height())) {
-      measurements0.push_back(gtcal::Measurement(uv, 0, ii));
-    }
-  }
-  // Expect the number of observations to match the number of target points for the first pose.
-  EXPECT_EQ(measurements0.size(), target_points3d.size());
-
-  // Get measurements at pose 1.
-  camera->setCameraPose(pose1_target_cam);
-  std::vector<gtcal::Measurement> measurements1;
-  measurements1.reserve(target_points3d.size());
-  for (size_t ii = 0; ii < target_points3d.size(); ii++) {
-    const gtsam::Point3& pt3d_target = target_points3d.at(ii);
-    const gtsam::Point2 uv = camera->project(pt3d_target);
-    if (gtcal::utils::FilterPixelCoords(uv, camera->width(), camera->height())) {
-      measurements1.push_back(gtcal::Measurement(uv, 0, ii));
-    }
-  }
-  // Expect the number of observations to match the number of target points for the first pose.
-  EXPECT_EQ(measurements1.size(), target_points3d.size());
-
-  // Create optimization problem.
-  gtsam::NonlinearFactorGraph graph;
-  gtsam::Values values;
-
-  // Add camera pose prior to graph and initial estimate to values.
-  gtsam::Pose3 delta(gtsam::Rot3::Rodrigues(-0.033, 0.02, -0.05), gtsam::Point3(0.01, -0.016, 0.005));
-  values.insert(X(0), pose0_target_cam.compose(delta));
-  values.insert(X(1), pose1_target_cam.compose(delta));
-  // graph.addPrior(X(0), pose0_target_cam);
-  // graph.addPrior(X(1), pose1_target_cam, pose_noise);
-
-  // Add first pose observations to factors.
-  for (size_t ii = 0; ii < measurements0.size(); ii++) {
-    const size_t pt3d_idx = measurements0.at(ii).point_id;
-    smart_factors.at(pt3d_idx)->add(measurements0.at(ii).uv, X(0));
-  }
-  // Add second pose observations to factors.
-  for (size_t ii = 0; ii < measurements1.size(); ii++) {
-    const size_t pt3d_idx = measurements1.at(ii).point_id;
-    smart_factors.at(pt3d_idx)->add(measurements1.at(ii).uv, X(1));
-  }
-
-  for (const auto& sf : smart_factors) {
-    graph.push_back(sf);
-  }
-
-  // Solve problem.
-  gtsam::LevenbergMarquardtParams params;
-  gtsam::Values result = gtsam::LevenbergMarquardtOptimizer(graph, values, params).optimize();
-  std::cout << "Ground truth x0:\n" << pose0_target_cam.matrix() << "\n";
-  std::cout << "Ground truth x1:\n" << pose1_target_cam.matrix() << "\n";
-  result.print();
-
-  // // Compare to the ground truth.
-  // const gtsam::Pose3 pose_est_gt_delta =
-  //     pose0_target_cam.inverse().compose(result.at<gtsam::Pose3>(camera_key));
-  // const gtsam::Vector6 pose_est_gt_delta_vec = gtcal::utils::PoseToVector(pose_est_gt_delta);
-  // std::cout << "pose0_target_cam:\n" << pose0_target_cam.matrix() << std::endl;
-  // std::cout << "Pose delta vec:\n" << pose_est_gt_delta_vec.transpose() << std::endl;
 }
 
 int main(int argc, char** argv) {

@@ -3,8 +3,8 @@
 #include <ceres/ceres.h>
 #include <ceres/loss_function.h>
 
-#include "gtcal/camera.h"
-#include "gtcal/utils.h"
+#include "gtcal/camera.hpp"
+#include "gtcal/utils.hpp"
 
 namespace gtcal {
 

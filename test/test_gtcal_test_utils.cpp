@@ -1,5 +1,4 @@
-#include "gtcal_test_utils.h"
-#include "gtcal_viz_utils.h"
+#include "gtcal_test_utils.hpp"
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -10,7 +9,6 @@ protected:
   const double grid_spacing = 0.3;
   const int num_rows = 10;
   const int num_cols = 13;
-  const int num_target_pts = num_rows * num_cols;
 };
 
 // Tests that poses are sampled around the target.

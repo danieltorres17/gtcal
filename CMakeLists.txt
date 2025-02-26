@@ -10,6 +10,7 @@ find_package(GTSAM REQUIRED)
 find_package(Ceres REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(Pangolin REQUIRED)
+find_package(OpenCV REQUIRED)
 
 set(GTCAL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/include)
 
@@ -28,6 +29,10 @@ target_link_libraries(pose_solver_gtsam gtsam)
 add_library(batch_solver src/batch_solver.cpp)
 target_include_directories(batch_solver PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR})
 target_link_libraries(batch_solver gtsam calibration_target)
+
+add_library(simulator src/simulator.cpp)
+target_include_directories(simulator PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR})
+target_link_libraries(simulator gtsam calibration_target)
 
 add_library(visualizer src/viz.cpp)
 target_include_directories(visualizer PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} ${PANGOLIN_INCLUDE_DIR})

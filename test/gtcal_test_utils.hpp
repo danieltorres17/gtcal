@@ -2,7 +2,7 @@
 
 #include <gtsam/geometry/Pose3.h>
 #include <iomanip>
-#include "gtcal/utils.h"
+#include "gtcal/utils.hpp"
 #include "gtcal/calibration_target.hpp"
 
 #define IMAGE_WIDTH 1024
@@ -43,10 +43,9 @@ static gtsam::Pose3Vector GeneratePosesAroundTarget(const CalibrationTarget& tar
   return poses_target_cam;
 }
 
-// TODO: figure out how to fix seed.
 static gtsam::Pose3 ApplyNoise(const gtsam::Pose3& pose, const double xyz_std_dev, const double rot_std_dev) {
   // Create random number generators.
-  static std::default_random_engine gen;
+  static std::default_random_engine gen(42);
   std::normal_distribution<double> xyz_dist(0.0, xyz_std_dev);
   std::normal_distribution<double> rot_dist(0.0, rot_std_dev);
 

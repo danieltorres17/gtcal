@@ -18,7 +18,7 @@ Camera intrinsics/extrinsics calibration using factor graphs
 - [ ] Update visualization to see pose estimates and even camera projections live for each iteration.
 
 ### TODO: Misc.
-- [ ] Re-do the gtcal::Camera interface in `gtcal/camera.h`.
+- [ ] Re-do the gtcal::Camera interface in `gtcal/camera.hpp`.
 - [ ] Upload the Dockerfile and setup scripts.
 
 Note: pose variables are named as follows `pose_target_cam` meaning the pose of the camera relative to the target or the pose of the camera in the target frame. All point sets are also labeled in their corresponding reference frame. Ex: `pts3d_target` denotes the target points in the target frame.

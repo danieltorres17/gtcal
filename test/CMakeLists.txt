@@ -19,3 +19,7 @@ target_link_libraries(test_batch_solver GTest::GTest gtsam batch_solver calibrat
 add_executable(test_gtcal_test_utils test_gtcal_test_utils.cpp)
 target_include_directories(test_gtcal_test_utils PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} ${Pangolin_INCLUDE_DIRS})
 target_link_libraries(test_gtcal_test_utils GTest::GTest gtsam calibration_target ${Pangolin_LIBRARIES})
+
+add_executable(test_simulator test_simulator.cpp)
+target_include_directories(test_simulator PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(test_simulator GTest::GTest gtsam calibration_target simulator ${OpenCV_LIBS})

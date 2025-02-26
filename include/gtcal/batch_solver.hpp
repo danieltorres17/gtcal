@@ -7,7 +7,7 @@
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/linear/NoiseModel.h>
 
-#include "gtcal/camera.h"
+#include "gtcal/camera.hpp"
 
 namespace gtcal {
 struct Measurement;
