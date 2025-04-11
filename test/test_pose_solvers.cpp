@@ -11,7 +11,7 @@
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/inference/Symbol.h>
 #include "gtcal/pose_solver_gtsam.hpp"
-#include "gtcal/viz.hpp"
+#include "gtcal/viewer.hpp"
 
 #include <gtest/gtest.h>
 #include <algorithm>

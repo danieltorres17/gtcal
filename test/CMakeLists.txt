@@ -10,7 +10,7 @@ target_link_libraries(test_camera GTest::GTest gtsam calibration_target)
 
 add_executable(test_pose_solvers test_pose_solvers.cpp)
 target_include_directories(test_pose_solvers PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} ${CERES_INCLUDE_DIRS} ${PANGOLIN_INCLUDE_DIR})
-target_link_libraries(test_pose_solvers GTest::GTest gtsam pose_solver pose_solver_gtsam calibration_target visualizer ${Pangolin_LIBRARIES})
+target_link_libraries(test_pose_solvers GTest::GTest gtsam pose_solver pose_solver_gtsam calibration_target viewer ${Pangolin_LIBRARIES})
 
 add_executable(test_batch_solver test_batch_solver.cpp)
 target_include_directories(test_batch_solver PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR})

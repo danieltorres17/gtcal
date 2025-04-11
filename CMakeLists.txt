@@ -34,9 +34,9 @@ add_library(simulator src/simulator.cpp)
 target_include_directories(simulator PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR})
 target_link_libraries(simulator gtsam calibration_target)
 
-add_library(visualizer src/viz.cpp)
-target_include_directories(visualizer PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} ${PANGOLIN_INCLUDE_DIR})
-target_link_libraries(visualizer ${Pangolin_LIBRARIES})
+add_library(viewer src/viewer.cpp)
+target_include_directories(viewer PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} ${PANGOLIN_INCLUDE_DIR})
+target_link_libraries(viewer ${Pangolin_LIBRARIES} gtsam)
 
 add_library(calibration_ctx src/calibration_ctx.cpp)
 target_include_directories(calibration_ctx PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR})
