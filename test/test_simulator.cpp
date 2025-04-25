@@ -3,13 +3,14 @@
 #include "gtcal_test_utils.hpp"
 #include "gtcal/simulator.hpp"
 #include "gtcal/calibration_ctx.hpp"
+#include "gtcal/viewer.hpp"
 
 #include <opencv2/opencv.hpp>
 
 struct SimulatorFixture : public testing::Test {
 protected:
   // Target grid point parameters.
-  const double grid_spacing = 0.3;
+  const double grid_spacing = 0.2;
   const size_t num_rows = 10;
   const size_t num_cols = 13;
   const size_t num_target_pts = num_rows * num_cols;
@@ -62,7 +63,7 @@ TEST_F(SimulatorFixture, SimInitialization) {
   EXPECT_EQ(sim.frameCounter(), 0);
 }
 
-TEST_F(SimulatorFixture, DISABLED_GetFrames) {
+TEST_F(SimulatorFixture, GetFrames) {
   gtcal::Simulator sim(target, extrinsics_gt, poses_target_cam0_gt, cameras_vec);
   EXPECT_EQ(sim.frameCounter(), 0);
 
@@ -75,13 +76,12 @@ TEST_F(SimulatorFixture, DISABLED_GetFrames) {
   // Check first camera frame values.
   EXPECT_EQ(frames0.at(0).camera_id, 0);
   EXPECT_EQ(frames0.at(0).measurements.size(), target->pointsTarget().size());
-  EXPECT_TRUE(frames0.at(0).pose_target_cam_gt.equals(poses_target_cam0_gt.at(0)));
+  EXPECT_TRUE(frames0.at(0).pose_target_cam.equals(poses_target_cam0_gt.at(0)));
 
   // Check second camera frame values.
   EXPECT_EQ(frames0.at(1).camera_id, 1);
   EXPECT_EQ(frames0.at(1).measurements.size(), target->pointsTarget().size());
-  EXPECT_TRUE(
-      frames0.at(1).pose_target_cam_gt.equals(poses_target_cam0_gt.at(0).compose(pose_camera0_camera1)));
+  EXPECT_TRUE(frames0.at(1).pose_target_cam.equals(poses_target_cam0_gt.at(0).compose(pose_camera0_camera1)));
 
   // Check frame counter.
   EXPECT_EQ(frames0.at(0).frame_count, 0);
@@ -111,13 +111,12 @@ TEST_F(SimulatorFixture, DISABLED_GetFrames) {
   // Check first camera frame values at next frame.
   EXPECT_EQ(frames1.at(0).camera_id, 0);
   EXPECT_EQ(frames1.at(0).measurements.size(), target->pointsTarget().size());
-  EXPECT_TRUE(frames1.at(0).pose_target_cam_gt.equals(poses_target_cam0_gt.at(1)));
+  EXPECT_TRUE(frames1.at(0).pose_target_cam.equals(poses_target_cam0_gt.at(1)));
 
   // Check second camera frame values.
   EXPECT_EQ(frames1.at(1).camera_id, 1);
   EXPECT_EQ(frames1.at(1).measurements.size(), target->pointsTarget().size());
-  EXPECT_TRUE(
-      frames1.at(1).pose_target_cam_gt.equals(poses_target_cam0_gt.at(1).compose(pose_camera0_camera1)));
+  EXPECT_TRUE(frames1.at(1).pose_target_cam.equals(poses_target_cam0_gt.at(1).compose(pose_camera0_camera1)));
 
   // Check frame counter was updated correctly.
   EXPECT_EQ(frames1.at(0).frame_count, 1);
@@ -134,7 +133,7 @@ TEST_F(SimulatorFixture, DISABLED_GetFrames) {
   EXPECT_EQ(sim.frameCounter(), 0);
 }
 
-TEST_F(SimulatorFixture, CalibrationCtx) {
+TEST_F(SimulatorFixture, DISABLED_CalibrationCtx) {
   // Initialize calibration context.
   std::vector<gtcal::Camera::Ptr> camera_rig_vec{cameras_vec.at(0)};
   std::vector<gtsam::Pose3> camera_rig_extrinsics_vec{gtsam::Pose3()};
@@ -154,7 +153,7 @@ TEST_F(SimulatorFixture, CalibrationCtx) {
 
   // Attempt to run optimization.
   gtsam::Pose3 delta(gtsam::Rot3::RzRyRx(0.2, -0.1, -0.4), gtsam::Point3(-0.156, -0.072, 0.1));
-  const gtsam::Pose3 pose_est_initial = frames0.at(0).pose_target_cam_gt.compose(delta);
+  const gtsam::Pose3 pose_est_initial = frames0.at(0).pose_target_cam.compose(delta);
   gtcal::CalibrationCtx::Frame ctx_frame(frames0.at(0).camera_id, frames0.at(0).measurements,
                                          pose_est_initial);
   ctx.processFrames(std::vector<gtcal::CalibrationCtx::Frame>{ctx_frame});
@@ -162,6 +161,47 @@ TEST_F(SimulatorFixture, CalibrationCtx) {
   const auto& estimate = ctx_state->current_estimate;
   estimate.print();
   std::cout << "pose_est_initial:\n" << pose_est_initial.matrix() << "\n";
+}
+
+TEST_F(SimulatorFixture, DISABLED_Viewer) {
+  gtcal::Viewer::Ptr viewer = std::make_shared<gtcal::Viewer>();
+
+  // Initialize simulator.
+  std::vector<gtcal::Camera::Ptr> camera_rig_vec{cameras_vec.at(0)};
+  std::vector<gtsam::Pose3> camera_rig_extrinsics_vec{gtsam::Pose3()};
+  gtcal::Simulator sim(target, camera_rig_extrinsics_vec, poses_target_cam0_gt, camera_rig_vec);
+
+  // Use viewer to visualize the simulator.
+  viewer->update(target->pointsTarget());
+  viewer->update(poses_target_cam0_gt);
+
+  viewer->close();
+}
+
+TEST(SimulatorInterp, Interpolation) {
+  gtsam::Pose3 pose0;
+  gtsam::Pose3 pose1(gtsam::Rot3::RzRyRx(0., 0., 0.), gtsam::Point3(1.0, 0., 0.));
+  gtsam::Pose3 pose2(gtsam::Rot3::RzRyRx(0., 0., 0.), gtsam::Point3(2.0, 0., 0.));
+  const size_t num_poses = 7;
+  std::vector<gtsam::Pose3> poses{pose0, pose1, pose2};
+
+  const std::vector<gtsam::Pose3> poses_traj = gtcal::utils::InterpolatePoses(poses, num_poses);
+  ASSERT_TRUE(poses_traj.front().compose(pose0.inverse()).equals(gtsam::Pose3()));
+  ASSERT_TRUE(poses_traj.back().compose(pose2.inverse()).equals(gtsam::Pose3()));
+  EXPECT_EQ(poses_traj.size(), (num_poses) * (poses.size() - 1));
+
+  gtcal::Viewer::Ptr viewer = std::make_shared<gtcal::Viewer>();
+
+  // Initialize simulator.
+  // std::vector<gtcal::Camera::Ptr> camera_rig_vec{cameras_vec.at(0)};
+  // std::vector<gtsam::Pose3> camera_rig_extrinsics_vec{gtsam::Pose3()};
+  // gtcal::Simulator sim(target, camera_rig_extrinsics_vec, poses_target_cam0_gt, camera_rig_vec);
+
+  // Use viewer to visualize the simulator.
+  // viewer->update(target->pointsTarget());
+  viewer->update(poses_traj);
+
+  viewer->close();
 }
 
 int main(int argc, char** argv) {

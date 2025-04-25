@@ -21,5 +21,9 @@ target_include_directories(test_gtcal_test_utils PRIVATE ${GTCAL_INCLUDE_DIRS} $
 target_link_libraries(test_gtcal_test_utils GTest::GTest gtsam calibration_target ${Pangolin_LIBRARIES})
 
 add_executable(test_simulator test_simulator.cpp)
-target_include_directories(test_simulator PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(test_simulator GTest::GTest gtsam calibration_target simulator calibration_ctx ${OpenCV_LIBS})
+target_include_directories(test_simulator PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS} ${Pangolin_INCLUDE_DIRS})
+target_link_libraries(test_simulator GTest::GTest gtsam calibration_target simulator calibration_ctx viewer ${OpenCV_LIBS} ${Pangolin_LIBRARIES})
+
+add_executable(test_calibration_ctx test_calibration_ctx.cpp)
+target_include_directories(test_calibration_ctx PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS} ${Pangolin_INCLUDE_DIRS})
+target_link_libraries(test_calibration_ctx GTest::GTest gtsam calibration_target simulator calibration_ctx viewer ${OpenCV_LIBS} ${Pangolin_LIBRARIES})

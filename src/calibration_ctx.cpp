@@ -4,6 +4,8 @@
 #include <gtsam/nonlinear/NonlinearEquality.h>
 #include <gtsam/inference/Symbol.h>
 
+#include <unordered_set>
+
 using gtsam::symbol_shorthand::K;
 using gtsam::symbol_shorthand::L;
 using gtsam::symbol_shorthand::X;
@@ -26,9 +28,12 @@ CalibrationCtx::CalibrationCtx(const CameraRig::Ptr camera_rig, const Calibratio
   state_->isam = gtsam::ISAM2(params);
 }
 
-void CalibrationCtx::processFrames(const std::vector<CalibrationCtx::Frame>& frames) {
+gtsam::Values CalibrationCtx::processFrames(const std::vector<CalibrationCtx::Frame>& frames) {
   state_->graph.resize(0);
   state_->current_estimate.clear();
+
+  // Add landmark constraints to graph.
+  addLandmarkFactors(frames, state_->graph, state_->current_estimate);
 
   for (size_t ii = 0; ii < frames.size(); ii++) {
     const auto& frame = frames.at(ii);
@@ -54,6 +59,28 @@ void CalibrationCtx::processFrames(const std::vector<CalibrationCtx::Frame>& fra
   // After processing all frames, run optimization.
   state_->isam.update(state_->graph, state_->current_estimate);
   state_->isam.update();
+  state_->isam.update();
+
+  return state_->isam.calculateEstimate();
+}
+
+void CalibrationCtx::addLandmarkFactors(const std::vector<Frame>& frames, gtsam::NonlinearFactorGraph& graph,
+                                        gtsam::Values& values) const {
+  std::unordered_set<size_t> landmark_ids;
+  for (const auto& frame : frames) {
+    for (const auto& meas : frame.measurements) {
+      if (landmark_ids.count(meas.point_id) == 0) {
+        landmark_ids.insert(meas.point_id);
+
+        // Add nonlinear equality constraint to landmark to fix during optimization.
+        graph.emplace_shared<gtsam::NonlinearEquality<gtsam::Point3>>(
+            L(meas.point_id), target_->pointsTarget().at(meas.point_id));
+
+        // Add to values.
+        values.insert(L(meas.point_id), target_->pointsTarget().at(meas.point_id));
+      }
+    }
+  }
 }
 
 void CalibrationCtx::addSFMFactors(const size_t camera_id, const Camera::Ptr& camera,
@@ -63,38 +90,34 @@ void CalibrationCtx::addSFMFactors(const size_t camera_id, const Camera::Ptr& ca
                                    gtsam::NonlinearFactorGraph& graph, gtsam::Values& values) const {
   // Get camera model.
   const auto model_type = camera->modelType();
+  const gtsam::Symbol camera_pose_key = camera_rig_->cameraPoseKey(camera_id, num_camera_update);
+  const gtsam::Symbol camera_calibration_key = camera_rig_->calibrationKey(camera_id);
 
   if (model_type == Camera::ModelType::CAL3_S2) {
     // Add SFM factors.
     for (const auto& meas : measurements) {
       // Add SFM factor.
       graph.emplace_shared<gtsam::GeneralSFMFactor2<gtsam::Cal3_S2>>(
-          meas.uv, noise_models_->pixel_meas_noise_model, X(num_camera_update), L(meas.point_id),
-          K(camera_id));
-
-      // Add nonlinear equality constraint to landmark to fix during optimization.
-      graph.emplace_shared<gtsam::NonlinearEquality<gtsam::Point3>>(
-          L(meas.point_id), target_->pointsTarget().at(meas.point_id));
-
-      // Add to values.
-      values.insert(L(meas.point_id), target_->pointsTarget().at(meas.point_id));
+          meas.uv, noise_models_->pixel_meas_noise_model, camera_pose_key, L(meas.point_id),
+          camera_calibration_key);
     }
   }
 
   // Add initial camera pose estimate to values.
-  values.insert<gtsam::Pose3>(X(num_camera_update), pose_target_cam_estimate);
+  values.insert<gtsam::Pose3>(camera_pose_key, pose_target_cam_estimate);
 }
 
 void CalibrationCtx::addCalibrationPrior(const size_t camera_id, const std::shared_ptr<gtcal::Camera>& camera,
                                          gtsam::NonlinearFactorGraph& graph, gtsam::Values& values) const {
   const auto model_type = camera->modelType();
+  const gtsam::Symbol camera_calibration_key = camera_rig_->calibrationKey(camera_id);
 
   if (model_type == Camera::ModelType::CAL3_S2) {
     const auto cmod = std::get<std::shared_ptr<CameraWrapper<gtsam::Cal3_S2>>>(camera->cameraVariant());
     assert(cmod);
 
-    graph.addPrior(K(camera_id), cmod->calibration(), noise_models_->calibration_noise_model);
-    values.insert(K(camera_id), cmod->calibration());
+    graph.addPrior(camera_calibration_key, cmod->calibration(), noise_models_->calibration_noise_model);
+    values.insert(camera_calibration_key, cmod->calibration());
   }
 }
 

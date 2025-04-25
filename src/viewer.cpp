@@ -19,12 +19,9 @@ void Viewer::threadLoop() {
   pangolin::CreateWindowAndBind(window_name_, 1024, 768);
   glEnable(GL_DEPTH_TEST);
 
-  // pangolin::OpenGlRenderState vis_camera(pangolin::ProjectionMatrix(1024, 768, 400, 400, 512, 384,
-  // 0.1, 15.),
-  //                                        pangolin::ModelViewLookAt(0, -1.0, -0.25, 0, 0, 0, 0.0, -1.0,
-  //                                        0.0));
-  pangolin::OpenGlRenderState vis_camera(pangolin::ProjectionMatrix(1024, 768, 400, 400, 512, 384, 0.1, 15.),
-                                         pangolin::ModelViewLookAt(0, -1.0, -0.25, 0, 0, 0, pangolin::AxisZ));
+  pangolin::OpenGlRenderState vis_camera(
+      pangolin::ProjectionMatrix(1280, 720, 500, 500, 640, 360, 0.1, 10.),
+      pangolin::ModelViewLookAt(1.0, -1.0, -3.0, 0, 0, 0, pangolin::AxisNegY));
 
   // Add named OpenGL viewport to window and provide 3D handler.
   pangolin::Handler3D handler(vis_camera);
@@ -77,6 +74,12 @@ void Viewer::drawPoints() {
   if (!points_) {
     return;
   }
+
+  // Draw calibration target origin (top-left corner).
+  auto origin_axis = std::make_shared<pangolin::Axis>();
+  origin_axis->axis_length = 0.25;
+  origin_axis->T_pc = pose3ToOpenGlMatrix(gtsam::Pose3());
+  tree_.Add(origin_axis);
 
   glPointSize(5);
   glBegin(GL_POINTS);

@@ -48,7 +48,9 @@ public:
   };
 
   CalibrationCtx(const CameraRig::Ptr camera_rig, const CalibrationTarget::Ptr target);
-  void processFrames(const std::vector<Frame>& frames);
+  gtsam::Values processFrames(const std::vector<Frame>& frames);
+  void addLandmarkFactors(const std::vector<Frame>& frames, gtsam::NonlinearFactorGraph& graph,
+                          gtsam::Values& values) const;
   void addSFMFactors(const size_t camera_id, const Camera::Ptr& camera, const size_t num_camera_update,
                      const std::vector<Measurement>& measurements,
                      const gtsam::Pose3& pose_target_cam_estimate, gtsam::NonlinearFactorGraph& graph,
