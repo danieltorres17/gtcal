@@ -3,12 +3,9 @@
 
 namespace gtcal {
 
-Simulator::Simulator(const std::shared_ptr<CalibrationTarget> cal_target,
-                     const std::vector<gtsam::Pose3>& poses_extrinsics_gt,
-                     const std::vector<gtsam::Pose3>& poses_target_cam0_gt,
-                     const std::vector<std::shared_ptr<Camera>>& cameras_gt)
-  : cal_target_(cal_target), poses_extrinsics_gt_(poses_extrinsics_gt),
-    poses_target_cam0_gt_(poses_target_cam0_gt), cameras_gt_(cameras_gt) {}
+Simulator::Simulator(const CalibrationTarget::Ptr cal_target, const CameraRig::Ptr camera_rig,
+                     const std::vector<gtsam::Pose3>& poses_target_cam0_gt)
+  : cal_target_(cal_target), camera_rig_(camera_rig), poses_target_cam0_gt_(poses_target_cam0_gt) {}
 
 std::optional<std::vector<Simulator::Frame>> Simulator::nextFrames() {
   if (frame_counter_ >= poses_target_cam0_gt_.size()) {
@@ -16,17 +13,18 @@ std::optional<std::vector<Simulator::Frame>> Simulator::nextFrames() {
   }
 
   std::vector<Simulator::Frame> sim_frames;
-  sim_frames.reserve(cameras_gt_.size());
+  sim_frames.reserve(camera_rig_->numCameras());
 
   // Current pose of camera 0.
   const gtsam::Pose3& pose_target_cam0_curr = poses_target_cam0_gt_.at(frame_counter_);
   const auto& pts3d_target = cal_target_->pointsTarget();
 
-  for (size_t ii = 0; ii < cameras_gt_.size(); ii++) {
-    const auto& camera = cameras_gt_.at(ii);
+  for (size_t ii = 0; ii < camera_rig_->numCameras(); ii++) {
+    const auto& camera = camera_rig_->cameras.at(ii);
 
     // Compute pose of camera using extrinsics.
-    const gtsam::Pose3 pose_target_cam_ii = pose_target_cam0_curr.compose(poses_extrinsics_gt_.at(ii));
+    const gtsam::Pose3 pose_target_cam_ii =
+        pose_target_cam0_curr.compose(camera_rig_->camera_extrinsics.at(ii));
     camera->setCameraPose(pose_target_cam_ii);
 
     // Get the measurements at the current pose.

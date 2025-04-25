@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gtcal/camera.hpp"
+#include "gtcal/utils.hpp"
 
 #include <gtsam/inference/Symbol.h>
 #include <unordered_map>
@@ -49,6 +50,23 @@ struct CameraRig {
   }
 
   size_t numCameras() const { return cameras.size(); }
+
+  static Ptr CreateNoisyCameraRig(const Ptr& original) {
+    std::vector<std::shared_ptr<Camera>> noisy_cameras;
+    noisy_cameras.reserve(original->cameras.size());
+    for (const auto& camera : original->cameras) {
+      noisy_cameras.push_back(std::make_shared<Camera>(*camera));
+    }
+
+    std::vector<gtsam::Pose3> noisy_extrinsics;
+    noisy_extrinsics.reserve(original->camera_extrinsics.size());
+    for (const auto& extrinsic : original->camera_extrinsics) {
+      const gtsam::Pose3 noisy_extrinsic = utils::ApplyNoiseToPose(extrinsic, 0.01, 0.1);
+      noisy_extrinsics.push_back(noisy_extrinsic);
+    }
+
+    return std::make_shared<CameraRig>(noisy_cameras, noisy_extrinsics);
+  }
 
   std::vector<std::shared_ptr<Camera>> cameras;
   std::vector<gtsam::Pose3> camera_extrinsics;

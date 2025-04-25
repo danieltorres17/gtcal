@@ -93,7 +93,7 @@ TEST_F(Simple3PoseScenario, Simulator) {
   gtcal::CalibrationCtx ctx(camera_rig, target);
 
   // Create Simulator object.
-  gtcal::Simulator sim(target, {gtsam::Pose3(), pose_cam0_cam1}, poses_target_cam0_gt, cameras_vec);
+  gtcal::Simulator sim(target, camera_rig, poses_target_cam0_gt);
   std::cout << "cameras_vec.at(0).use_count: " << cameras_vec.at(0).use_count() << "\n";
 
   // Get simulator results.

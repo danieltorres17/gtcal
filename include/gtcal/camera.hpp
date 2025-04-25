@@ -100,6 +100,20 @@ public:
 
   enum class ModelType { CAL3_S2, CAL3_FISHEYE };
 
+  Camera() = default;
+
+  Camera(const Camera& other) {
+    model_ = other.model_;
+    camera_ = std::visit(
+        [](const auto& cam_ptr) -> CameraVariant {
+          using T = std::decay_t<decltype(cam_ptr)>;
+          using WrapperType = typename T::element_type;
+
+          return std::make_shared<WrapperType>(*cam_ptr);
+        },
+        other.camera_);
+  }
+
   /**
    * @brief Set the Camera Model object.
    *

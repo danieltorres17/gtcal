@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gtcal/camera.hpp"
+#include "gtcal/camera_rig.hpp"
 #include "gtcal/calibration_target.hpp"
 #include "gtcal/measurement.hpp"
 
@@ -15,10 +15,8 @@ public:
     gtsam::Pose3 pose_target_cam = gtsam::Pose3();
   };
 
-  Simulator(const std::shared_ptr<CalibrationTarget> cal_target,
-            const std::vector<gtsam::Pose3>& poses_extrinsics_gt,
-            const std::vector<gtsam::Pose3>& poses_target_cam0_gt,
-            const std::vector<std::shared_ptr<Camera>>& cameras_gt);
+  Simulator(const CalibrationTarget::Ptr cal_target, const CameraRig::Ptr camera_rig,
+            const std::vector<gtsam::Pose3>& poses_target_cam0_gt);
 
   std::optional<std::vector<Frame>> nextFrames();
   void reset() { frame_counter_ = 0; }
@@ -35,10 +33,9 @@ public:
 
 private:
   size_t frame_counter_ = 0;
-  std::shared_ptr<CalibrationTarget> cal_target_ = nullptr;
-  const std::vector<gtsam::Pose3> poses_extrinsics_gt_;
+  CalibrationTarget::Ptr cal_target_ = nullptr;
+  CameraRig::Ptr camera_rig_ = nullptr;
   const std::vector<gtsam::Pose3> poses_target_cam0_gt_;
-  const std::vector<std::shared_ptr<Camera>> cameras_gt_;
 };
 
 }  // namespace gtcal

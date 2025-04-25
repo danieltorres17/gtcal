@@ -58,13 +58,15 @@ protected:
 };
 
 TEST_F(SimulatorFixture, SimInitialization) {
-  gtcal::Simulator sim(target, extrinsics_gt, poses_target_cam0_gt, cameras_vec);
+  gtcal::CameraRig::Ptr camera_rig = std::make_shared<gtcal::CameraRig>(cameras_vec, extrinsics_gt);
+  gtcal::Simulator sim(target, camera_rig, poses_target_cam0_gt);
   EXPECT_EQ(sim.numFrames(), poses_target_cam0_gt.size());
   EXPECT_EQ(sim.frameCounter(), 0);
 }
 
 TEST_F(SimulatorFixture, GetFrames) {
-  gtcal::Simulator sim(target, extrinsics_gt, poses_target_cam0_gt, cameras_vec);
+  gtcal::CameraRig::Ptr camera_rig = std::make_shared<gtcal::CameraRig>(cameras_vec, extrinsics_gt);
+  gtcal::Simulator sim(target, camera_rig, poses_target_cam0_gt);
   EXPECT_EQ(sim.frameCounter(), 0);
 
   // Get first set of frames.
@@ -142,8 +144,7 @@ TEST_F(SimulatorFixture, DISABLED_CalibrationCtx) {
   gtcal::CalibrationCtx ctx(camera_rig, target);
 
   // Initialize simulator.
-  gtcal::Simulator sim(target, camera_rig_extrinsics_vec,
-                       std::vector<gtsam::Pose3>{poses_target_cam0_gt.at(0)}, camera_rig_vec);
+  gtcal::Simulator sim(target, camera_rig, std::vector<gtsam::Pose3>{poses_target_cam0_gt.at(0)});
 
   // Get frames from sim.
   const auto frames0_opt = sim.nextFrames();
@@ -169,7 +170,8 @@ TEST_F(SimulatorFixture, DISABLED_Viewer) {
   // Initialize simulator.
   std::vector<gtcal::Camera::Ptr> camera_rig_vec{cameras_vec.at(0)};
   std::vector<gtsam::Pose3> camera_rig_extrinsics_vec{gtsam::Pose3()};
-  gtcal::Simulator sim(target, camera_rig_extrinsics_vec, poses_target_cam0_gt, camera_rig_vec);
+  gtcal::CameraRig::Ptr camera_rig = std::make_shared<gtcal::CameraRig>(cameras_vec, extrinsics_gt);
+  gtcal::Simulator sim(target, camera_rig, poses_target_cam0_gt);
 
   // Use viewer to visualize the simulator.
   viewer->update(target->pointsTarget());

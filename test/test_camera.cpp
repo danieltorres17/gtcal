@@ -174,6 +174,28 @@ TEST_F(CameraFixture, Intrinsics) {
   EXPECT_EQ(fisheye_cam_params.at(7), K_fisheye->k4());
 }
 
+// Tests the copy constructor for the gtcal::Camera object.
+TEST_F(CameraFixture, CopyConstructor) {
+  // Create gtcal camera.
+  gtcal::Camera cal3_s2_cam;
+  cal3_s2_cam.setCameraModel<gtsam::Cal3_S2>(IMAGE_WIDTH, IMAGE_HEIGHT, *K_cal3_s2, pose0_target_cam);
+  EXPECT_EQ(cal3_s2_cam.modelType(), gtcal::Camera::ModelType::CAL3_S2);
+
+  // Create copy of gtcal camera.
+  gtcal::Camera cal3_s2_cam_copy(cal3_s2_cam);
+  EXPECT_EQ(cal3_s2_cam_copy.modelType(), gtcal::Camera::ModelType::CAL3_S2);
+  EXPECT_EQ(cal3_s2_cam_copy.width(), IMAGE_WIDTH);
+  EXPECT_EQ(cal3_s2_cam_copy.height(), IMAGE_HEIGHT);
+  EXPECT_TRUE(cal3_s2_cam_copy.pose().equals(cal3_s2_cam.pose()));
+  EXPECT_EQ(cal3_s2_cam_copy.numIntrinsicParameters(), 4);
+  const std::vector<double> cal3_s2_cam_params = cal3_s2_cam_copy.intrinsicsParameters();
+  EXPECT_EQ(cal3_s2_cam_params.size(), 4);
+  EXPECT_EQ(cal3_s2_cam_params.at(0), K_cal3_s2->fx());
+  EXPECT_EQ(cal3_s2_cam_params.at(1), K_cal3_s2->fy());
+  EXPECT_EQ(cal3_s2_cam_params.at(2), K_cal3_s2->px());
+  EXPECT_EQ(cal3_s2_cam_params.at(3), K_cal3_s2->py());
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
