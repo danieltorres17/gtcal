@@ -97,6 +97,7 @@ public:
   using Ptr = std::shared_ptr<Camera>;
   using CameraVariant = std::variant<std::shared_ptr<CameraWrapper<gtsam::Cal3_S2>>,
                                      std::shared_ptr<CameraWrapper<gtsam::Cal3Fisheye>>>;
+  using CalibrationVariant = std::variant<gtsam::Cal3_S2, gtsam::Cal3Fisheye>;
 
   enum class ModelType { CAL3_S2, CAL3_FISHEYE };
 
@@ -148,6 +149,23 @@ public:
           }
         },
         camera_);
+  }
+
+  void updateCalibration(const CalibrationVariant& calibration) {
+    std::visit(
+        [&](auto&& calib) -> void {
+          using T = std::decay_t<decltype(calib)>;
+          if constexpr (std::is_same_v<T, gtsam::Cal3_S2>) {
+            auto cam = std::get<std::shared_ptr<CameraWrapper<gtsam::Cal3_S2>>>(camera_);
+            cam->updateCalibration(calib);
+          } else if constexpr (std::is_same_v<T, gtsam::Cal3Fisheye>) {
+            auto cam = std::get<std::shared_ptr<CameraWrapper<gtsam::Cal3Fisheye>>>(camera_);
+            cam->updateCalibration(calib);
+          } else {
+            assert(false && "Invalid camera model.");
+          }
+        },
+        calibration);
   }
 
   /**
@@ -231,6 +249,21 @@ public:
           } else if constexpr (std::is_same_v<T, std::shared_ptr<CameraWrapper<gtsam::Cal3Fisheye>>>) {
             const auto K = arg->calibration();
             return {K.fx(), K.fy(), K.px(), K.py(), K.k1(), K.k2(), K.k3(), K.k4()};
+          } else {
+            assert(false && "Invalid camera model.");
+          }
+        },
+        camera_);
+  }
+
+  void printCalibration() const {
+    std::visit(
+        [&](auto&& arg) -> void {
+          using T = std::decay_t<decltype(arg)>;
+          if constexpr (std::is_same_v<T, std::shared_ptr<CameraWrapper<gtsam::Cal3_S2>>>) {
+            std::cout << "Camera calibration: " << arg->calibration() << "\n";
+          } else if constexpr (std::is_same_v<T, std::shared_ptr<CameraWrapper<gtsam::Cal3Fisheye>>>) {
+            std::cout << "Camera calibration: " << arg->calibration() << "\n";
           } else {
             assert(false && "Invalid camera model.");
           }

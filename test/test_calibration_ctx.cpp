@@ -84,31 +84,17 @@ protected:
   }
 };
 
-TEST_F(Simple3PoseScenario, Simulator) {
-  // Create camera rig.
-  gtcal::CameraRig::Ptr camera_rig = std::make_shared<gtcal::CameraRig>(
+TEST_F(Simple3PoseScenario, Simulator3Pose) {
+  // Create camera rigs.
+  gtcal::CameraRig::Ptr camera_rig_gt = std::make_shared<gtcal::CameraRig>(
       cameras_vec, std::vector<gtsam::Pose3>{gtsam::Pose3(), pose_cam0_cam1});
+  gtcal::CameraRig::Ptr camera_rig_noisy = gtcal::CameraRig::CreateNoisyCameraRig(camera_rig_gt);
 
   // Create calibration context.
-  gtcal::CalibrationCtx ctx(camera_rig, target);
+  gtcal::CalibrationCtx ctx(camera_rig_noisy, target);
 
   // Create Simulator object.
-  gtcal::Simulator sim(target, camera_rig, poses_target_cam0_gt);
-  std::cout << "cameras_vec.at(0).use_count: " << cameras_vec.at(0).use_count() << "\n";
-
-  // Get simulator results.
-  const auto frames0_opt = sim.nextFrames();
-  ASSERT_TRUE(frames0_opt);
-  const std::vector<gtcal::Simulator::Frame>& frames0 = *frames0_opt;
-  EXPECT_EQ(frames0.size(), camera_rig->numCameras());
-
-  // Generate noisy simulator results.
-  std::vector<gtcal::Simulator::Frame> frames0_noisy;
-  frames0_noisy.reserve(frames0.size());
-  for (const auto& frame : frames0) {
-    const auto noisy_frame = gtcal::Simulator::GenerateNoisyFrame(frame);
-    frames0_noisy.push_back(noisy_frame);
-  }
+  gtcal::Simulator sim(target, camera_rig_gt, poses_target_cam0_gt);
 
   auto SimFramesToCtxFrame =
       [](const std::vector<gtcal::Simulator::Frame>& frames) -> std::vector<gtcal::CalibrationCtx::Frame> {
@@ -120,46 +106,47 @@ TEST_F(Simple3PoseScenario, Simulator) {
     return ctx_frames;
   };
 
-  // Create calibration ctx frames.
-  const std::vector<gtcal::CalibrationCtx::Frame> ctx_frames0 = SimFramesToCtxFrame(frames0_noisy);
-  std::cout << "ctx_frames0.size(): " << ctx_frames0.size() << "\n";
+  for (size_t ii = 0; ii < poses_target_cam0_gt.size(); ii++) {
+    std::cout << "Frame: " << ii << "\n";
+    const auto frames_opt = sim.nextFrames();
+    ASSERT_TRUE(frames_opt);
 
-  // Process frames.
-  const gtsam::Values estimate0 = ctx.processFrames(ctx_frames0);
-  const auto keys_set = estimate0.keys();
-  for (const auto& key : keys_set) {
-    const gtsam::Symbol key_sym(key);
-    if (key_sym.chr() == 'l') {
-      continue;
+    // Get simulator frame and create noisy frame.
+    const std::vector<gtcal::Simulator::Frame>& frames = *frames_opt;
+    const std::vector<gtcal::Simulator::Frame> frames_noisy = gtcal::Simulator::GenerateNoisyFrames(frames);
+
+    // Convert simulator frames to ctx frames.
+    const std::vector<gtcal::CalibrationCtx::Frame> ctx_frames = SimFramesToCtxFrame(frames_noisy);
+
+    // Process frames.
+    const gtsam::Values estimate = ctx.processFrames(ctx_frames);
+    ctx.updateCameraRigCalibrations(estimate);
+    ctx.updateCameraPosesInTargetFrame(estimate);
+    camera_rig_noisy->cameras.at(0)->printCalibration();
+    camera_rig_noisy->cameras.at(1)->printCalibration();
+
+    // Print camera poses in target frame.
+    for (const auto& [k, v] : ctx.state()->poses_target_cam_map) {
+      for (size_t jj = 0; jj < v.size(); jj++) {
+        const auto& pose_opt = v.at(jj);
+        if (pose_opt) {
+          std::cout << "pose_" << jj << "target_camera_" << k << ": \n" << pose_opt->matrix() << "\n";
+        } else {
+          std::cout << "Pose: nullopt\n";
+        }
+      }
     }
-    if (key_sym.chr() == 'k') {
-      std::cout << "Symbol: " << key_sym << "\n";
-      continue;
-    }
-    std::cout << "Symbol: " << key_sym << ", camera id: " << camera_rig->cameraPoseKeyToIndex(key_sym)
-              << "\n";
-  }
 
-  for (size_t ii = 0; ii < frames0_noisy.size(); ii++) {
-    std::cout << "camera id: " << frames0_noisy.at(ii).camera_id
-              << ", pose id: " << frames0_noisy.at(ii).frame_count << "\n";
-    std::cout << "Noisy frame initial pose: \n" << frames0_noisy.at(ii).pose_target_cam.matrix() << "\n";
-    std::cout << "Ground truth pose: \n" << frames0.at(ii).pose_target_cam.matrix() << "\n";
-    std::cout
-        << "Estimated pose: \n"
-        << estimate0.at<gtsam::Pose3>(camera_rig->cameraPoseKey(frames0_noisy.at(ii).camera_id, 0)).matrix()
-        << "\n\n";
+    // Print camera extrinsics.
+    const auto pose_target_cam0_opt = ctx.state()->poses_target_cam_map.at(0).at(0);
+    const auto pose_target_cam1_opt = ctx.state()->poses_target_cam_map.at(1).at(0);
+    ASSERT_TRUE(pose_target_cam0_opt);
+    ASSERT_TRUE(pose_target_cam1_opt);
+    const gtsam::Pose3 pose_target_cam0 = pose_target_cam0_opt.value();
+    const gtsam::Pose3 pose_target_cam1 = pose_target_cam1_opt.value();
+    const gtsam::Pose3 extrinsics = pose_target_cam0.inverse().compose(pose_target_cam1);
+    std::cout << "Estimated camera extrinsics:\n" << extrinsics.matrix() << "\n\n";
   }
-  std::cout << "Estimated camera 0 calibration: \n" << estimate0.at<gtsam::Cal3_S2>(K(0)) << "\n";
-  std::cout << "Estimated camera 1 calibration: \n" << estimate0.at<gtsam::Cal3_S2>(K(1)) << "\n";
-
-  // Update the camera rig with the estimated camera calibrations.
-  for (size_t ii = 0; ii < camera_rig->numCameras(); ii++) {
-    camera_rig->cameras.at(ii)->setCameraModel<gtsam::Cal3_S2>(IMAGE_WIDTH, IMAGE_HEIGHT,
-                                                               estimate0.at<gtsam::Cal3_S2>(K(ii)));
-  }
-
-  // Update the estimated camera extrinsics.
 }
 
 int main(int argc, char** argv) {

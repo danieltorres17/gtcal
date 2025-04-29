@@ -26,6 +26,9 @@ public:
   static Frame GenerateNoisyFrame(const Frame& frame, const double xyz_std_dev = 0.01,
                                   const double rot_std_dev = 0.1, const double meas_std_dev = 1.0,
                                   const unsigned int random_seed = 42);
+  static std::vector<Frame> GenerateNoisyFrames(const std::vector<Frame>& frames, const double xyz_std_dev = 0.01,
+                                  const double rot_std_dev = 0.1, const double meas_std_dev = 1.0,
+                                  const unsigned int random_seed = 42);
   static std::vector<Measurement> AddNoiseToMeasurements(const std::vector<Measurement>& measurements,
                                                          const double std_dev = 1.0, unsigned int seed = 42);
   static gtsam::Pose3 ApplyNoiseToPose(const gtsam::Pose3& pose, const double xyz_std_dev,

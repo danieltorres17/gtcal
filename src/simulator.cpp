@@ -60,6 +60,20 @@ Simulator::Frame Simulator::GenerateNoisyFrame(const Simulator::Frame& frame, co
       .pose_target_cam = ApplyNoiseToPose(frame.pose_target_cam, xyz_std_dev, rot_std_dev)};
 }
 
+std::vector<Simulator::Frame> Simulator::GenerateNoisyFrames(const std::vector<Simulator::Frame>& frames,
+                                                             const double xyz_std_dev,
+                                                             const double rot_std_dev,
+                                                             const double meas_std_dev,
+                                                             const unsigned int random_seed) {
+  std::vector<Simulator::Frame> noisy_frames;
+  noisy_frames.reserve(frames.size());
+  for (const auto& frame : frames) {
+    noisy_frames.push_back(GenerateNoisyFrame(frame, xyz_std_dev, rot_std_dev, meas_std_dev, random_seed));
+  }
+
+  return noisy_frames;
+}
+
 std::vector<Measurement> Simulator::AddNoiseToMeasurements(const std::vector<Measurement>& measurements,
                                                            const double std_dev, unsigned int seed) {
   std::normal_distribution<double> dist(0.0, std_dev);

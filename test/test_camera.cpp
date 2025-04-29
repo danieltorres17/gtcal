@@ -107,7 +107,7 @@ TEST_F(CameraFixture, CameraVariant) {
 }
 
 // Tests that a CameraWrapper's calibration can be updated.
-TEST_F(CameraFixture, UpdateCalibration) {
+TEST_F(CameraFixture, CameraWrapperUpdateCalibration) {
   // Create gtcal camera.
   gtcal::CameraWrapper<gtsam::Cal3Fisheye> fisheye_camera(IMAGE_WIDTH, IMAGE_HEIGHT, *K_fisheye,
                                                           pose0_target_cam);
@@ -177,23 +177,58 @@ TEST_F(CameraFixture, Intrinsics) {
 // Tests the copy constructor for the gtcal::Camera object.
 TEST_F(CameraFixture, CopyConstructor) {
   // Create gtcal camera.
-  gtcal::Camera cal3_s2_cam;
-  cal3_s2_cam.setCameraModel<gtsam::Cal3_S2>(IMAGE_WIDTH, IMAGE_HEIGHT, *K_cal3_s2, pose0_target_cam);
-  EXPECT_EQ(cal3_s2_cam.modelType(), gtcal::Camera::ModelType::CAL3_S2);
+  gtcal::Camera::Ptr cal3_s2_cam = std::make_shared<gtcal::Camera>();
+  cal3_s2_cam->setCameraModel<gtsam::Cal3_S2>(IMAGE_WIDTH, IMAGE_HEIGHT, *K_cal3_s2, pose0_target_cam);
+  cal3_s2_cam->setCameraPose(
+      gtsam::Pose3(gtsam::Rot3::RzRyRx(-0.125, 0.38, 1.9), gtsam::Point3(0.1, 0.2, 0.3)));
+  EXPECT_EQ(cal3_s2_cam->modelType(), gtcal::Camera::ModelType::CAL3_S2);
+  EXPECT_TRUE(cal3_s2_cam.unique());
 
   // Create copy of gtcal camera.
-  gtcal::Camera cal3_s2_cam_copy(cal3_s2_cam);
-  EXPECT_EQ(cal3_s2_cam_copy.modelType(), gtcal::Camera::ModelType::CAL3_S2);
-  EXPECT_EQ(cal3_s2_cam_copy.width(), IMAGE_WIDTH);
-  EXPECT_EQ(cal3_s2_cam_copy.height(), IMAGE_HEIGHT);
-  EXPECT_TRUE(cal3_s2_cam_copy.pose().equals(cal3_s2_cam.pose()));
-  EXPECT_EQ(cal3_s2_cam_copy.numIntrinsicParameters(), 4);
-  const std::vector<double> cal3_s2_cam_params = cal3_s2_cam_copy.intrinsicsParameters();
+  gtcal::Camera::Ptr cal3_s2_cam_copy = std::make_shared<gtcal::Camera>(*cal3_s2_cam);
+  EXPECT_EQ(cal3_s2_cam_copy->modelType(), gtcal::Camera::ModelType::CAL3_S2);
+  EXPECT_EQ(cal3_s2_cam_copy->width(), IMAGE_WIDTH);
+  EXPECT_EQ(cal3_s2_cam_copy->height(), IMAGE_HEIGHT);
+  EXPECT_TRUE(cal3_s2_cam_copy->pose().equals(cal3_s2_cam->pose()));
+  EXPECT_EQ(cal3_s2_cam_copy->numIntrinsicParameters(), 4);
+  const std::vector<double> cal3_s2_cam_params = cal3_s2_cam_copy->intrinsicsParameters();
   EXPECT_EQ(cal3_s2_cam_params.size(), 4);
   EXPECT_EQ(cal3_s2_cam_params.at(0), K_cal3_s2->fx());
   EXPECT_EQ(cal3_s2_cam_params.at(1), K_cal3_s2->fy());
   EXPECT_EQ(cal3_s2_cam_params.at(2), K_cal3_s2->px());
   EXPECT_EQ(cal3_s2_cam_params.at(3), K_cal3_s2->py());
+  EXPECT_TRUE(cal3_s2_cam.unique());
+  EXPECT_TRUE(cal3_s2_cam_copy.unique());
+}
+
+// Tests the update calibration method for the gtcal::Camera object.
+TEST_F(CameraFixture, CameraUpdateCalibration) {
+  // Create gtcal camera.
+  gtcal::Camera fisheye_cam;
+  fisheye_cam.setCameraModel<gtsam::Cal3Fisheye>(IMAGE_WIDTH, IMAGE_HEIGHT, *K_fisheye, pose0_target_cam);
+  const int original_width = fisheye_cam.width();
+  const int original_height = fisheye_cam.height();
+  const std::vector<double> fisheye_cam_params_original = fisheye_cam.intrinsicsParameters();
+
+  // Create new calibration to update camera with.
+  gtsam::Cal3Fisheye K_fisheye_new(1000.0, 1000.0, 0.0, 500.0, 500.0, 1.07, 0.0, 0.5, 0.5);
+  fisheye_cam.updateCalibration(K_fisheye_new);
+  const std::vector<double> fisheye_cam_params_updated = fisheye_cam.intrinsicsParameters();
+
+  // Check calibration update.
+  EXPECT_EQ(fisheye_cam_params_updated.size(), 8);
+  EXPECT_EQ(fisheye_cam_params_updated.at(0), K_fisheye_new.fx());
+  EXPECT_EQ(fisheye_cam_params_updated.at(1), K_fisheye_new.fy());
+  EXPECT_EQ(fisheye_cam_params_updated.at(2), K_fisheye_new.px());
+  EXPECT_EQ(fisheye_cam_params_updated.at(3), K_fisheye_new.py());
+  EXPECT_EQ(fisheye_cam_params_updated.at(4), K_fisheye_new.k1());
+  EXPECT_EQ(fisheye_cam_params_updated.at(5), K_fisheye_new.k2());
+  EXPECT_EQ(fisheye_cam_params_updated.at(6), K_fisheye_new.k3());
+  EXPECT_EQ(fisheye_cam_params_updated.at(7), K_fisheye_new.k4());
+
+  // Ensure the same camera width and height.
+  EXPECT_EQ(fisheye_cam.width(), original_width);
+  EXPECT_EQ(fisheye_cam.height(), original_height);
 }
 
 int main(int argc, char** argv) {

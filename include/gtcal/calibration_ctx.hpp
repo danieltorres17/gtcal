@@ -29,6 +29,7 @@ public:
   struct State {
     size_t num_iterations = 0;
     std::unordered_map<size_t, size_t> camera_iter_count_map;
+    std::unordered_map<size_t, std::vector<std::optional<gtsam::Pose3>>> poses_target_cam_map;
 
     gtsam::ISAM2 isam;
     gtsam::NonlinearFactorGraph graph;
@@ -50,14 +51,18 @@ public:
   CalibrationCtx(const CameraRig::Ptr camera_rig, const CalibrationTarget::Ptr target);
   gtsam::Values processFrames(const std::vector<Frame>& frames);
   void addLandmarkFactors(const std::vector<Frame>& frames, gtsam::NonlinearFactorGraph& graph,
-                          gtsam::Values& values) const;
+                          gtsam::Values& values, const gtsam::ISAM2& isam) const;
   void addSFMFactors(const size_t camera_id, const Camera::Ptr& camera, const size_t num_camera_update,
                      const std::vector<Measurement>& measurements,
                      const gtsam::Pose3& pose_target_cam_estimate, gtsam::NonlinearFactorGraph& graph,
                      gtsam::Values& values) const;
 
   void addCalibrationPrior(const size_t camera_id, const std::shared_ptr<gtcal::Camera>& camera,
-                           gtsam::NonlinearFactorGraph& graph, gtsam::Values& values) const;
+                           gtsam::NonlinearFactorGraph& graph, gtsam::Values& values,
+                           const gtsam::ISAM2& isam) const;
+
+  void updateCameraRigCalibrations(const gtsam::Values& values);
+  void updateCameraPosesInTargetFrame(const gtsam::Values& values);
 
   const std::shared_ptr<const State> state() const { return state_; }
 
