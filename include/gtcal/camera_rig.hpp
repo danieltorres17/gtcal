@@ -25,7 +25,7 @@ struct CameraRig {
     }
   }
 
-  gtsam::Symbol cameraPoseKey(const size_t camera_id, const size_t pose_index) const {
+  gtsam::Symbol cameraPoseSymbol(const size_t camera_id, const size_t pose_index) const {
     if (camera_id >= camera_pose_key_map.size()) {
       throw std::out_of_range("Camera ID out of range");
     }
@@ -33,7 +33,7 @@ struct CameraRig {
     return gtsam::Symbol(camera_pose_key_map.at(camera_id), pose_index);
   }
 
-  gtsam::Symbol calibrationKey(const size_t camera_id) const {
+  gtsam::Symbol calibrationSymbol(const size_t camera_id) const {
     if (camera_id >= camera_pose_key_map.size()) {
       throw std::out_of_range("Camera ID out of range");
     }
@@ -41,20 +41,20 @@ struct CameraRig {
     return gtsam::Symbol('k', camera_id);
   }
 
-  size_t cameraPoseKeyToIndex(const gtsam::Symbol& key) const {
-    if (camera_pose_key_map_reverse.count(key.chr() == 0)) {
-      throw std::out_of_range("Camera pose key not found");
+  size_t cameraPoseSymbolToIndex(const gtsam::Symbol& symbol) const {
+    if (camera_pose_key_map_reverse.count(symbol.chr() == 0)) {
+      throw std::out_of_range("Camera pose symbol not found");
     }
 
-    return camera_pose_key_map_reverse.at(key.chr());
+    return camera_pose_key_map_reverse.at(symbol.chr());
   }
 
-  size_t cameraCalibrationKeyToIndex(const gtsam::Symbol& key) const {
-    if (key.chr() != 'k') {
-      throw std::invalid_argument("Key is not a calibration key");
+  size_t cameraCalibrationSymbolToIndex(const gtsam::Symbol& symbol) const {
+    if (symbol.chr() != 'k') {
+      throw std::invalid_argument("Symbol key is not a calibration key.");
     }
 
-    return static_cast<size_t>(key.index());
+    return static_cast<size_t>(symbol.index());
   }
 
   size_t numCameras() const { return cameras.size(); }

@@ -90,8 +90,8 @@ void CalibrationCtx::addSFMFactors(const size_t camera_id, const Camera::Ptr& ca
                                    gtsam::NonlinearFactorGraph& graph, gtsam::Values& values) const {
   // Get camera model.
   const auto model_type = camera->modelType();
-  const gtsam::Symbol camera_pose_key = camera_rig_->cameraPoseKey(camera_id, num_camera_update);
-  const gtsam::Symbol camera_calibration_key = camera_rig_->calibrationKey(camera_id);
+  const gtsam::Symbol camera_pose_key = camera_rig_->cameraPoseSymbol(camera_id, num_camera_update);
+  const gtsam::Symbol camera_calibration_key = camera_rig_->calibrationSymbol(camera_id);
 
   if (model_type == Camera::ModelType::CAL3_S2) {
     // Add SFM factors.
@@ -112,7 +112,7 @@ void CalibrationCtx::addCalibrationPrior(const size_t camera_id, const std::shar
                                          gtsam::NonlinearFactorGraph& graph, gtsam::Values& values,
                                          const gtsam::ISAM2& isam) const {
   const auto model_type = camera->modelType();
-  const gtsam::Symbol camera_calibration_key = camera_rig_->calibrationKey(camera_id);
+  const gtsam::Symbol camera_calibration_key = camera_rig_->calibrationSymbol(camera_id);
   if (isam.valueExists(camera_calibration_key)) {
     return;
   }
@@ -134,7 +134,7 @@ void CalibrationCtx::updateCameraRigCalibrations(const gtsam::Values& values) {
     const gtsam::Symbol key_sym(key);
     if (key_sym.chr() == 'k') {
       // Find the camera id.
-      const size_t camera_id = camera_rig_->cameraCalibrationKeyToIndex(key_sym);
+      const size_t camera_id = camera_rig_->cameraCalibrationSymbolToIndex(key_sym);
 
       // Get the camera model type. TODO: find better way to handle this.
       const auto model_type = camera_rig_->cameras.at(camera_id)->modelType();
@@ -164,7 +164,7 @@ void CalibrationCtx::updateCameraPosesInTargetFrame(const gtsam::Values& values)
     }
 
     // Get the corresponding camera id from the key.
-    const size_t camera_id = camera_rig_->cameraPoseKeyToIndex(key_sym);
+    const size_t camera_id = camera_rig_->cameraPoseSymbolToIndex(key_sym);
     camera_pose_indices_updated.insert(camera_id);
     const gtsam::Pose3 pose_target_cid = values.at<gtsam::Pose3>(key_sym);
     const size_t pose_index = static_cast<size_t>(key_sym.index());
