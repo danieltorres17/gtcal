@@ -88,10 +88,10 @@ TEST_F(Simple3PoseScenario, Simulator3Pose) {
   // Create camera rigs.
   gtcal::CameraRig::Ptr camera_rig_gt = std::make_shared<gtcal::CameraRig>(
       cameras_vec, std::vector<gtsam::Pose3>{gtsam::Pose3(), pose_cam0_cam1});
-  gtcal::CameraRig::Ptr camera_rig_noisy = gtcal::CameraRig::CreateNoisyCameraRig(camera_rig_gt);
+  gtcal::CalibrationRig::Ptr calibration_rig = std::make_shared<gtcal::CalibrationRig>(cameras_vec);
 
   // Create calibration context.
-  gtcal::CalibrationCtx ctx(camera_rig_noisy, target);
+  gtcal::CalibrationCtx ctx(calibration_rig, target);
 
   // Create Simulator object.
   gtcal::Simulator sim(target, camera_rig_gt, poses_target_cam0_gt);
@@ -122,11 +122,12 @@ TEST_F(Simple3PoseScenario, Simulator3Pose) {
     const gtsam::Values estimate = ctx.processFrames(ctx_frames);
     ctx.updateCameraRigCalibrations(estimate);
     ctx.updateCameraPosesInTargetFrame(estimate);
-    camera_rig_noisy->cameras.at(0)->printCalibration();
-    camera_rig_noisy->cameras.at(1)->printCalibration();
+    calibration_rig->cameras.at(0)->printCalibration();
+    calibration_rig->cameras.at(1)->printCalibration();
 
     // Print camera poses in target frame.
-    for (const auto& [k, v] : ctx.state()->poses_target_cam_map) {
+    for (const auto& [k, v] : calibration_rig->poses_target_camera_map) {
+      EXPECT_EQ(v.size(), ii + 1);
       for (size_t jj = 0; jj < v.size(); jj++) {
         const auto& pose_opt = v.at(jj);
         if (pose_opt) {
@@ -138,8 +139,8 @@ TEST_F(Simple3PoseScenario, Simulator3Pose) {
     }
 
     // Print camera extrinsics.
-    const auto pose_target_cam0_opt = ctx.state()->poses_target_cam_map.at(0).at(0);
-    const auto pose_target_cam1_opt = ctx.state()->poses_target_cam_map.at(1).at(0);
+    const auto pose_target_cam0_opt = calibration_rig->poses_target_camera_map.at(0).at(ii);
+    const auto pose_target_cam1_opt = calibration_rig->poses_target_camera_map.at(1).at(ii);
     ASSERT_TRUE(pose_target_cam0_opt);
     ASSERT_TRUE(pose_target_cam1_opt);
     const gtsam::Pose3 pose_target_cam0 = pose_target_cam0_opt.value();

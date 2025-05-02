@@ -12,8 +12,8 @@ using gtsam::symbol_shorthand::X;
 
 namespace gtcal {
 
-CalibrationCtx::CalibrationCtx(const CameraRig::Ptr camera_rig, const CalibrationTarget::Ptr target)
-  : camera_rig_(camera_rig), target_(target) {
+CalibrationCtx::CalibrationCtx(const CalibrationRig::Ptr calibration_rig, const CalibrationTarget::Ptr target)
+  : calibration_rig_(calibration_rig), target_(target) {
   // Initialize pose solver.
   pose_solver_ = std::make_unique<PoseSolverGtsam>();
 
@@ -37,19 +37,19 @@ gtsam::Values CalibrationCtx::processFrames(const std::vector<CalibrationCtx::Fr
 
     // Attempt to refine camera pose in target frame using initial estimate and observations.
     const std::optional<gtsam::Pose3> pose_target_cam_refined_opt =
-        pose_solver_->solve(frame.measurements, target_->pointsTarget(), camera_rig_->cameras.at(frame.cid),
-                            frame.pose_target_cam_estimate);
+        pose_solver_->solve(frame.measurements, target_->pointsTarget(),
+                            calibration_rig_->cameras.at(frame.cid), frame.pose_target_cam_estimate);
     if (!pose_target_cam_refined_opt) {
       continue;
     }
     const gtsam::Pose3& pose_target_cam_refined = *pose_target_cam_refined_opt;
 
     // Add SFM factors to graph.
-    addSFMFactors(frame.cid, camera_rig_->cameras.at(frame.cid), state_->cameraIterationCount(frame.cid),
+    addSFMFactors(frame.cid, calibration_rig_->cameras.at(frame.cid), state_->cameraIterationCount(frame.cid),
                   frame.measurements, pose_target_cam_refined, state_->graph, state_->current_estimate);
 
     // Add calibration prior to graph.
-    addCalibrationPrior(frame.cid, camera_rig_->cameras.at(frame.cid), state_->graph,
+    addCalibrationPrior(frame.cid, calibration_rig_->cameras.at(frame.cid), state_->graph,
                         state_->current_estimate, state_->isam);
   }
 
@@ -90,8 +90,8 @@ void CalibrationCtx::addSFMFactors(const size_t camera_id, const Camera::Ptr& ca
                                    gtsam::NonlinearFactorGraph& graph, gtsam::Values& values) const {
   // Get camera model.
   const auto model_type = camera->modelType();
-  const gtsam::Symbol camera_pose_key = camera_rig_->cameraPoseSymbol(camera_id, num_camera_update);
-  const gtsam::Symbol camera_calibration_key = camera_rig_->calibrationSymbol(camera_id);
+  const gtsam::Symbol camera_pose_key = calibration_rig_->cameraPoseSymbol(camera_id, num_camera_update);
+  const gtsam::Symbol camera_calibration_key = calibration_rig_->calibrationSymbol(camera_id);
 
   if (model_type == Camera::ModelType::CAL3_S2) {
     // Add SFM factors.
@@ -112,7 +112,7 @@ void CalibrationCtx::addCalibrationPrior(const size_t camera_id, const std::shar
                                          gtsam::NonlinearFactorGraph& graph, gtsam::Values& values,
                                          const gtsam::ISAM2& isam) const {
   const auto model_type = camera->modelType();
-  const gtsam::Symbol camera_calibration_key = camera_rig_->calibrationSymbol(camera_id);
+  const gtsam::Symbol camera_calibration_key = calibration_rig_->calibrationSymbol(camera_id);
   if (isam.valueExists(camera_calibration_key)) {
     return;
   }
@@ -134,14 +134,14 @@ void CalibrationCtx::updateCameraRigCalibrations(const gtsam::Values& values) {
     const gtsam::Symbol key_sym(key);
     if (key_sym.chr() == 'k') {
       // Find the camera id.
-      const size_t camera_id = camera_rig_->cameraCalibrationSymbolToIndex(key_sym);
+      const size_t camera_id = calibration_rig_->cameraCalibrationSymbolToIndex(key_sym);
 
       // Get the camera model type. TODO: find better way to handle this.
-      const auto model_type = camera_rig_->cameras.at(camera_id)->modelType();
+      const auto model_type = calibration_rig_->cameras.at(camera_id)->modelType();
       if (model_type == Camera::ModelType::CAL3_S2) {
-        camera_rig_->cameras.at(camera_id)->updateCalibration(values.at<gtsam::Cal3_S2>(key_sym));
+        calibration_rig_->cameras.at(camera_id)->updateCalibration(values.at<gtsam::Cal3_S2>(key_sym));
       } else if (model_type == Camera::ModelType::CAL3_FISHEYE) {
-        camera_rig_->cameras.at(camera_id)->updateCalibration(values.at<gtsam::Cal3Fisheye>(key_sym));
+        calibration_rig_->cameras.at(camera_id)->updateCalibration(values.at<gtsam::Cal3Fisheye>(key_sym));
       } else {
         assert(false && "Invalid camera model.");
       }
@@ -164,27 +164,27 @@ void CalibrationCtx::updateCameraPosesInTargetFrame(const gtsam::Values& values)
     }
 
     // Get the corresponding camera id from the key.
-    const size_t camera_id = camera_rig_->cameraPoseSymbolToIndex(key_sym);
+    const size_t camera_id = calibration_rig_->cameraPoseSymbolToIndex(key_sym);
     camera_pose_indices_updated.insert(camera_id);
     const gtsam::Pose3 pose_target_cid = values.at<gtsam::Pose3>(key_sym);
     const size_t pose_index = static_cast<size_t>(key_sym.index());
 
     // Check if camera id exists in the map.
-    if (state_->poses_target_cam_map.count(camera_id) == 0) {
-      state_->poses_target_cam_map.insert({camera_id, {}});
+    if (calibration_rig_->poses_target_camera_map.count(camera_id) == 0) {
+      calibration_rig_->poses_target_camera_map.insert({camera_id, {}});
     }
 
     // If the pose index, is already in the map vector, update it.
-    if (pose_index + 1 > state_->poses_target_cam_map.at(camera_id).size()) {
-      state_->poses_target_cam_map.at(camera_id).resize(pose_index + 1);
+    if (pose_index + 1 > calibration_rig_->poses_target_camera_map.at(camera_id).size()) {
+      calibration_rig_->poses_target_camera_map.at(camera_id).resize(pose_index + 1);
     }
-    state_->poses_target_cam_map.at(camera_id).at(pose_index) = pose_target_cid;
+    calibration_rig_->poses_target_camera_map.at(camera_id).at(pose_index) = pose_target_cid;
   }
 
   // Add nullopt for camera poses that were not updated.
-  for (size_t ii = 0; ii < camera_rig_->numCameras(); ii++) {
+  for (size_t ii = 0; ii < calibration_rig_->numCameras(); ii++) {
     if (camera_pose_indices_updated.count(ii) == 0) {
-      state_->poses_target_cam_map.at(ii).push_back(std::nullopt);
+      calibration_rig_->poses_target_camera_map.at(ii).push_back(std::nullopt);
     }
   }
 }

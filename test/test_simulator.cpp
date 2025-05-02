@@ -135,35 +135,6 @@ TEST_F(SimulatorFixture, GetFrames) {
   EXPECT_EQ(sim.frameCounter(), 0);
 }
 
-TEST_F(SimulatorFixture, DISABLED_CalibrationCtx) {
-  // Initialize calibration context.
-  std::vector<gtcal::Camera::Ptr> camera_rig_vec{cameras_vec.at(0)};
-  std::vector<gtsam::Pose3> camera_rig_extrinsics_vec{gtsam::Pose3()};
-  gtcal::CameraRig::Ptr camera_rig =
-      std::make_shared<gtcal::CameraRig>(camera_rig_vec, camera_rig_extrinsics_vec);
-  gtcal::CalibrationCtx ctx(camera_rig, target);
-
-  // Initialize simulator.
-  gtcal::Simulator sim(target, camera_rig, std::vector<gtsam::Pose3>{poses_target_cam0_gt.at(0)});
-
-  // Get frames from sim.
-  const auto frames0_opt = sim.nextFrames();
-  ASSERT_TRUE(frames0_opt);
-  const auto& frames0 = *frames0_opt;
-  EXPECT_EQ(frames0.size(), 1);
-
-  // Attempt to run optimization.
-  gtsam::Pose3 delta(gtsam::Rot3::RzRyRx(0.2, -0.1, -0.4), gtsam::Point3(-0.156, -0.072, 0.1));
-  const gtsam::Pose3 pose_est_initial = frames0.at(0).pose_target_cam.compose(delta);
-  gtcal::CalibrationCtx::Frame ctx_frame(frames0.at(0).camera_id, frames0.at(0).measurements,
-                                         pose_est_initial);
-  ctx.processFrames(std::vector<gtcal::CalibrationCtx::Frame>{ctx_frame});
-  const auto& ctx_state = ctx.state();
-  const auto& estimate = ctx_state->current_estimate;
-  estimate.print();
-  std::cout << "pose_est_initial:\n" << pose_est_initial.matrix() << "\n";
-}
-
 TEST_F(SimulatorFixture, DISABLED_Viewer) {
   gtcal::Viewer::Ptr viewer = std::make_shared<gtcal::Viewer>();
 

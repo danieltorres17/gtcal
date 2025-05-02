@@ -3,6 +3,7 @@
 #include <unordered_map>
 
 #include "gtcal/camera_rig.hpp"
+#include "gtcal/calibration_rig.hpp"
 #include "gtcal/pose_solver_gtsam.hpp"
 #include "gtcal/calibration_target.hpp"
 #include "gtcal/measurement.hpp"
@@ -29,7 +30,6 @@ public:
   struct State {
     size_t num_iterations = 0;
     std::unordered_map<size_t, size_t> camera_iter_count_map;
-    std::unordered_map<size_t, std::vector<std::optional<gtsam::Pose3>>> poses_target_cam_map;
 
     gtsam::ISAM2 isam;
     gtsam::NonlinearFactorGraph graph;
@@ -48,7 +48,7 @@ public:
             gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(5) << 50., 50., 0.001, 50., 50).finished())) {}
   };
 
-  CalibrationCtx(const CameraRig::Ptr camera_rig, const CalibrationTarget::Ptr target);
+  CalibrationCtx(const CalibrationRig::Ptr calibration_rig, const CalibrationTarget::Ptr target);
   gtsam::Values processFrames(const std::vector<Frame>& frames);
   void addLandmarkFactors(const std::vector<Frame>& frames, gtsam::NonlinearFactorGraph& graph,
                           gtsam::Values& values, const gtsam::ISAM2& isam) const;
@@ -67,7 +67,7 @@ public:
   const std::shared_ptr<const State> state() const { return state_; }
 
 private:
-  CameraRig::Ptr camera_rig_ = nullptr;
+  CalibrationRig::Ptr calibration_rig_ = nullptr;
   CalibrationTarget::Ptr target_ = nullptr;
 
   std::unique_ptr<PoseSolverGtsam> pose_solver_ = nullptr;
