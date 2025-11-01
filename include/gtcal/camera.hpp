@@ -30,6 +30,17 @@ public:
   }
 
   /**
+   * @brief Return safe projection of 3D point.
+   *
+   * @param pt3d_world 3D point to project in world frame.
+   * @return std::pair<gtsam::Point2, bool>
+   */
+  std::pair<gtsam::Point2, bool> projectSafe(const gtsam::Point3& pt3d_world) const {
+    gtsam::PinholeCamera<T> camera(pose_world_camera_, calibration_);
+    return camera.projectSafe(pt3d_world);
+  }
+
+  /**
    * @brief Update the camera's calibration.
    *
    * @param calibration gtsam calibration type.
@@ -182,6 +193,27 @@ public:
             return arg->project(pt3d_world);
           } else if constexpr (std::is_same_v<T, std::shared_ptr<CameraWrapper<gtsam::Cal3Fisheye>>>) {
             return arg->project(pt3d_world);
+          } else {
+            assert(false && "Invalid camera model.");
+          }
+        },
+        camera_);
+  }
+
+  /**
+   * @brief Return safe projection of 3D point given in world frame.
+   *
+   * @param pt3d_world 3D point in world frame to project.
+   * @return std::pair<gtsam::Point2, bool>
+   */
+  std::pair<gtsam::Point2, bool> projectSafe(const gtsam::Point3& pt3d_world) const {
+    return std::visit(
+        [&](auto&& arg) -> std::pair<gtsam::Point2, bool> {
+          using T = std::decay_t<decltype(arg)>;
+          if constexpr (std::is_same_v<T, std::shared_ptr<CameraWrapper<gtsam::Cal3_S2>>>) {
+            return arg->projectSafe(pt3d_world);
+          } else if constexpr (std::is_same_v<T, std::shared_ptr<CameraWrapper<gtsam::Cal3Fisheye>>>) {
+            return arg->projectSafe(pt3d_world);
           } else {
             assert(false && "Invalid camera model.");
           }

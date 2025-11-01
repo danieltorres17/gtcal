@@ -42,4 +42,16 @@ add_library(calibration_ctx src/calibration_ctx.cpp)
 target_include_directories(calibration_ctx PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR})
 target_link_libraries(calibration_ctx gtsam calibration_target pose_solver pose_solver_gtsam)
 
+add_library(random_pose_generator src/random_pose_generator.cpp)
+target_include_directories(random_pose_generator PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR})
+target_link_libraries(random_pose_generator gtsam calibration_target)
+
+add_executable(sim_dataset_generator src/sim_dataset_generator.cpp)
+target_include_directories(sim_dataset_generator PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS} ${SPDLOG_INCLUDE_DIRS})
+target_link_libraries(sim_dataset_generator random_pose_generator ${OpenCV_LIBS})
+
+add_executable(single_camera_cal_example apps/single_camera_cal_example.cpp)
+target_include_directories(single_camera_cal_example PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} ${SPDLOG_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(single_camera_cal_example calibration_ctx simulator viewer batch_solver gtsam random_pose_generator ${OpenCV_LIBS})
+
 add_subdirectory(test)

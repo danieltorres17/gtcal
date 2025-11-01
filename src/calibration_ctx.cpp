@@ -1,6 +1,7 @@
 #include "gtcal/calibration_ctx.hpp"
 
 #include <gtsam/slam/GeneralSFMFactor.h>
+#include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/nonlinear/NonlinearEquality.h>
 #include <gtsam/inference/Symbol.h>
 
@@ -67,16 +68,13 @@ gtsam::Values CalibrationCtx::processFrames(const std::vector<CalibrationCtx::Fr
 void CalibrationCtx::addLandmarkFactors(const std::vector<Frame>& frames, gtsam::NonlinearFactorGraph& graph,
                                         gtsam::Values& values, const gtsam::ISAM2& isam) const {
   std::unordered_set<size_t> landmark_ids;
+  auto landmark_prior_noise = gtsam::noiseModel::Isotropic::Sigma(3, 0.01);
   for (const auto& frame : frames) {
     for (const auto& meas : frame.measurements) {
       if (landmark_ids.count(meas.point_id) == 0 && !isam.valueExists(L(meas.point_id))) {
         landmark_ids.insert(meas.point_id);
 
-        // Add nonlinear equality constraint to landmark to fix during optimization.
-        graph.emplace_shared<gtsam::NonlinearEquality<gtsam::Point3>>(
-            L(meas.point_id), target_->pointsTarget().at(meas.point_id));
-
-        // Add to values.
+        graph.addPrior(L(meas.point_id), target_->pointsTarget().at(meas.point_id), landmark_prior_noise);
         values.insert(L(meas.point_id), target_->pointsTarget().at(meas.point_id));
       }
     }
@@ -123,6 +121,18 @@ void CalibrationCtx::addCalibrationPrior(const size_t camera_id, const std::shar
 
     graph.addPrior(camera_calibration_key, cmod->calibration(), noise_models_->calibration_noise_model);
     values.insert(camera_calibration_key, cmod->calibration());
+  }
+}
+
+void CalibrationCtx::addBetweenCameraPoseFactors(const std::vector<Frame>& frames,
+                                                 gtsam::NonlinearFactorGraph& graph,
+                                                 gtsam::Values& values) const {
+  // If the frames contain only one camera, no need to add between camera pose factors.
+  if (frames.size() < 2) {
+    return;
+  }
+
+  for (size_t ii = 0; ii < frames.size(); ii++) {
   }
 }
 

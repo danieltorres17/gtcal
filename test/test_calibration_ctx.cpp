@@ -131,7 +131,7 @@ TEST_F(Simple3PoseScenario, Simulator3Pose) {
       for (size_t jj = 0; jj < v.size(); jj++) {
         const auto& pose_opt = v.at(jj);
         if (pose_opt) {
-          std::cout << "pose_" << jj << "target_camera_" << k << ": \n" << pose_opt->matrix() << "\n";
+          std::cout << "pose" << jj << "_target_camera" << k << ": \n" << pose_opt->matrix() << "\n";
         } else {
           std::cout << "Pose: nullopt\n";
         }

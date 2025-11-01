@@ -31,11 +31,20 @@ std::optional<std::vector<Simulator::Frame>> Simulator::nextFrames() {
     std::vector<Measurement> measurements;
     for (size_t jj = 0; jj < pts3d_target.size(); jj++) {
       const gtsam::Point3 pt3d_t = pts3d_target.at(jj);
-      const gtsam::Point2 uv = camera->project(pt3d_t);
+      const auto [uv, safe] = camera->projectSafe(pt3d_t);
+      if (!safe) {
+        continue;
+      }
 
       if (utils::FilterPixelCoords(uv, camera->width(), camera->height())) {
         measurements.emplace_back(uv, ii, jj);
       }
+    }
+    if (measurements.empty()) {
+      // No measurements for this camera at this pose, skip frame.
+      std::cout << "Warning: No measurements for camera " << ii << " at frame " << frame_counter_
+                << ", skipping frame.\n";
+      continue;
     }
 
     // Add measurements to frame.

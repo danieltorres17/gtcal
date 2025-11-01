@@ -45,7 +45,7 @@ public:
     NoiseModels()
       : pixel_meas_noise_model(gtsam::noiseModel::Isotropic::Sigma(2, 1.0)),
         calibration_noise_model(
-            gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(5) << 50., 50., 0.001, 50., 50).finished())) {}
+            gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(5) << 2., 2., 0.0001, 2., 2.).finished())) {}
   };
 
   CalibrationCtx(const CalibrationRig::Ptr calibration_rig, const CalibrationTarget::Ptr target);
@@ -60,6 +60,9 @@ public:
   void addCalibrationPrior(const size_t camera_id, const std::shared_ptr<gtcal::Camera>& camera,
                            gtsam::NonlinearFactorGraph& graph, gtsam::Values& values,
                            const gtsam::ISAM2& isam) const;
+
+  void addBetweenCameraPoseFactors(const std::vector<Frame>& frames, gtsam::NonlinearFactorGraph& graph,
+                                   gtsam::Values& values) const;
 
   void updateCameraRigCalibrations(const gtsam::Values& values);
   void updateCameraPosesInTargetFrame(const gtsam::Values& values);
