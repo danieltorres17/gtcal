@@ -40,12 +40,15 @@ public:
 
   struct NoiseModels {
     gtsam::noiseModel::Isotropic::shared_ptr pixel_meas_noise_model = nullptr;
-    gtsam::noiseModel::Diagonal::shared_ptr calibration_noise_model = nullptr;
+    gtsam::noiseModel::Diagonal::shared_ptr cal3_s2_calibration_noise_model = nullptr;
+    gtsam::noiseModel::Diagonal::shared_ptr cal3_fisheye_calibration_noise_model = nullptr;
 
     NoiseModels()
       : pixel_meas_noise_model(gtsam::noiseModel::Isotropic::Sigma(2, 1.0)),
-        calibration_noise_model(
-            gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(5) << 2., 2., 0.0001, 2., 2.).finished())) {}
+        cal3_s2_calibration_noise_model(
+            gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(5) << 2., 2., 0.0001, 2., 2.).finished())),
+        cal3_fisheye_calibration_noise_model(gtsam::noiseModel::Diagonal::Sigmas(
+            (gtsam::Vector(9) << 2., 2., 0.0001, 2., 2., 0.001, -0.001, 0.0, 0.0).finished())) {}
   };
 
   CalibrationCtx(const CalibrationRig::Ptr calibration_rig, const CalibrationTarget::Ptr target);
@@ -61,8 +64,9 @@ public:
                            gtsam::NonlinearFactorGraph& graph, gtsam::Values& values,
                            const gtsam::ISAM2& isam) const;
 
-  void addBetweenCameraPoseFactors(const std::vector<Frame>& frames, gtsam::NonlinearFactorGraph& graph,
-                                   gtsam::Values& values) const;
+  void addBetweenCameraPoseFactors(
+      const std::vector<std::pair<uint64_t, gtsam::Pose3>>& refined_poses_target_cam,
+      gtsam::NonlinearFactorGraph& graph, gtsam::Values& values) const;
 
   void updateCameraRigCalibrations(const gtsam::Values& values);
   void updateCameraPosesInTargetFrame(const gtsam::Values& values);

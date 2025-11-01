@@ -19,6 +19,7 @@ public:
             const std::vector<gtsam::Pose3>& poses_target_cam0_gt);
 
   std::optional<std::vector<Frame>> nextFrames();
+  std::vector<std::vector<Frame>> allFrames();
   void reset() { frame_counter_ = 0; }
   size_t frameCounter() const { return frame_counter_; }
   size_t numFrames() const { return poses_target_cam0_gt_.size(); }

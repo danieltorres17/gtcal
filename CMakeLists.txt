@@ -54,4 +54,8 @@ add_executable(single_camera_cal_example apps/single_camera_cal_example.cpp)
 target_include_directories(single_camera_cal_example PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} ${SPDLOG_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(single_camera_cal_example calibration_ctx simulator viewer batch_solver gtsam random_pose_generator ${OpenCV_LIBS})
 
+add_executable(stereo_camera_cal_example apps/stereo_camera_cal_example.cpp)
+target_include_directories(stereo_camera_cal_example PRIVATE ${GTCAL_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} ${SPDLOG_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(stereo_camera_cal_example calibration_ctx simulator viewer batch_solver gtsam random_pose_generator ${OpenCV_LIBS})
+
 add_subdirectory(test)

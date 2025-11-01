@@ -33,6 +33,8 @@ gtsam::Values CalibrationCtx::processFrames(const std::vector<CalibrationCtx::Fr
   // Add landmark constraints to graph.
   addLandmarkFactors(frames, state_->graph, state_->current_estimate, state_->isam);
 
+  std::vector<std::pair<uint64_t, gtsam::Pose3>> refined_poses_target_cam_vec;
+  refined_poses_target_cam_vec.reserve(frames.size());
   for (size_t ii = 0; ii < frames.size(); ii++) {
     const auto& frame = frames.at(ii);
 
@@ -44,6 +46,7 @@ gtsam::Values CalibrationCtx::processFrames(const std::vector<CalibrationCtx::Fr
       continue;
     }
     const gtsam::Pose3& pose_target_cam_refined = *pose_target_cam_refined_opt;
+    refined_poses_target_cam_vec.push_back({frame.cid, pose_target_cam_refined});
 
     // Add SFM factors to graph.
     addSFMFactors(frame.cid, calibration_rig_->cameras.at(frame.cid), state_->cameraIterationCount(frame.cid),
@@ -99,6 +102,14 @@ void CalibrationCtx::addSFMFactors(const size_t camera_id, const Camera::Ptr& ca
           meas.uv, noise_models_->pixel_meas_noise_model, camera_pose_key, L(meas.point_id),
           camera_calibration_key);
     }
+  } else if (model_type == Camera::ModelType::CAL3_FISHEYE) {
+    // Add SFM factors.
+    for (const auto& meas : measurements) {
+      // Add SFM factor.
+      graph.emplace_shared<gtsam::GeneralSFMFactor2<gtsam::Cal3Fisheye>>(
+          meas.uv, noise_models_->pixel_meas_noise_model, camera_pose_key, L(meas.point_id),
+          camera_calibration_key);
+    }
   }
 
   // Add initial camera pose estimate to values.
@@ -119,20 +130,50 @@ void CalibrationCtx::addCalibrationPrior(const size_t camera_id, const std::shar
     const auto cmod = std::get<std::shared_ptr<CameraWrapper<gtsam::Cal3_S2>>>(camera->cameraVariant());
     assert(cmod);
 
-    graph.addPrior(camera_calibration_key, cmod->calibration(), noise_models_->calibration_noise_model);
+    graph.addPrior(camera_calibration_key, cmod->calibration());
+    values.insert(camera_calibration_key, cmod->calibration());
+  } else if (model_type == Camera::ModelType::CAL3_FISHEYE) {
+    const auto cmod = std::get<std::shared_ptr<CameraWrapper<gtsam::Cal3Fisheye>>>(camera->cameraVariant());
+    assert(cmod);
+
+    graph.addPrior(camera_calibration_key, cmod->calibration());
     values.insert(camera_calibration_key, cmod->calibration());
   }
 }
 
-void CalibrationCtx::addBetweenCameraPoseFactors(const std::vector<Frame>& frames,
-                                                 gtsam::NonlinearFactorGraph& graph,
-                                                 gtsam::Values& values) const {
+void CalibrationCtx::addBetweenCameraPoseFactors(
+    const std::vector<std::pair<uint64_t, gtsam::Pose3>>& refined_poses_target_cam,
+    gtsam::NonlinearFactorGraph& graph, gtsam::Values& values) const {
   // If the frames contain only one camera, no need to add between camera pose factors.
-  if (frames.size() < 2) {
+  if (refined_poses_target_cam.size() < 2) {
+    std::cout << "Only one camera present in frames, skipping between camera pose factors.\n";
     return;
   }
 
-  for (size_t ii = 0; ii < frames.size(); ii++) {
+  // Add between factors to constrain extrinsics.
+  for (size_t ii = 0; ii < refined_poses_target_cam.size(); ii++) {
+    std::cout << refined_poses_target_cam.at(ii).first << ": "
+              << refined_poses_target_cam.at(ii).second.translation().transpose() << "\n";
+
+    // const size_t cam_id_prev = refined_poses_target_cam.at(ii - 1).first;
+    // const size_t cam_id_curr = refined_poses_target_cam.at(ii).first;
+    // const gtsam::Pose3& pose_prev = refined_poses_target_cam.at(ii - 1).second;
+    // const gtsam::Pose3& pose_curr = refined_poses_target_cam.at(ii).second;
+    // const gtsam::Symbol camera_pose_key_i =
+    //     calibration_rig_->cameraPoseSymbol(cam_id_prev, state_->cameraIterationCount(cam_id_prev));
+    // const gtsam::Symbol camera_pose_key_j =
+    //     calibration_rig_->cameraPoseSymbol(cam_id_curr, state_->cameraIterationCount(cam_id_curr));
+
+    // // Compute relative pose between the two cameras in the target frame.
+    // const gtsam::Pose3 pose_ci_cj = pose_prev.between(pose_curr);
+
+    // // Add between factor.
+    // auto between_noise =
+    //     gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector(6) << 0.01, 0.01, 0.01, 0.1, 0.1,
+    //     0.1).finished());
+    // graph.add(
+    //     gtsam::BetweenFactor<gtsam::Pose3>(camera_pose_key_i, camera_pose_key_j, pose_ci_cj,
+    //     between_noise));
   }
 }
 

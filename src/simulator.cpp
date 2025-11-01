@@ -59,6 +59,26 @@ std::optional<std::vector<Simulator::Frame>> Simulator::nextFrames() {
   return sim_frames;
 }
 
+std::vector<std::vector<Simulator::Frame>> Simulator::allFrames() {
+  std::vector<std::vector<Simulator::Frame>> all_frames;
+  all_frames.reserve(poses_target_cam0_gt_.size());
+  size_t original_frame_counter = frame_counter_;
+  this->reset();
+
+  while (true) {
+    auto frames_opt = this->nextFrames();
+    if (!frames_opt.has_value()) {
+      break;
+    }
+    const auto& frames = *frames_opt;
+    all_frames.push_back(frames);
+  }
+
+  this->frame_counter_ = original_frame_counter;
+
+  return all_frames;
+}
+
 Simulator::Frame Simulator::GenerateNoisyFrame(const Simulator::Frame& frame, const double xyz_std_dev,
                                                const double rot_std_dev, const double meas_std_dev,
                                                const unsigned int random_seed) {
